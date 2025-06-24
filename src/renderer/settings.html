@@ -111,165 +111,227 @@
         <button class="close-btn" id="close-settings">×</button>
     </div>
     <script type="module">
-        // 关闭按钮
-        document.getElementById('close-settings').onclick = () => {
-            window.electronAPI && window.electronAPI.closeSettings();
+        // --- 工具函数 ---
+        const debounce = (func, delay) => {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
         };
-        // 菜单切换
+
+        // --- DOM 引用 ---
+        const closeButton = document.getElementById('close-settings');
         const menuItems = document.querySelectorAll('.menu-item');
         const sectionContent = document.getElementById('settings-section-content');
         const title = document.querySelector('.settings-title');
-        const sectionMap = {
-            model: { title: '3D模型设置', render: renderModel },
-            scene: { title: '3D场景设置', render: renderScene },
-        };
+
+        // --- 全局状态 ---
+        let config = {};
         let currentSection = 'model';
+        const sectionMap = {
+            model: { title: '3D模型设置', render: renderModelSection },
+            scene: { title: '3D场景设置', render: renderSceneSection },
+        };
+
+        // --- 初始化和配置管理 ---
+        const saveConfig = debounce(() => {
+            window.electronAPI && window.electronAPI.setConfig(config);
+        }, 300);
+
+        async function loadConfigAndRender() {
+            config = (await window.electronAPI.getConfig()) || {};
+            // 确保配置对象中有基本结构
+            config.model = config.model || {};
+            config.scene = config.scene || {};
+            config.model.partTips = config.model.partTips || [];
+
+            renderCurrentSection();
+        }
+
+        function renderCurrentSection() {
+            title.textContent = sectionMap[currentSection].title;
+            sectionContent.innerHTML = ''; // 清空内容
+            sectionMap[currentSection].render(sectionContent);
+        }
+
+        // --- 事件监听 ---
+        closeButton.onclick = () => {
+            window.electronAPI && window.electronAPI.closeSettings();
+        };
+
         menuItems.forEach(item => {
             item.onclick = () => {
                 menuItems.forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
-                const sec = item.getAttribute('data-section');
-                currentSection = sec;
-                title.textContent = sectionMap[sec].title;
-                sectionContent.innerHTML = '';
-                sectionMap[sec].render(sectionContent);
+                currentSection = item.getAttribute('data-section');
+                renderCurrentSection();
             };
         });
-        // 3D模型设置
-        function renderModel(container) {
+        
+        // 恢复默认配置
+        async function resetConfig() {
+            if(confirm('确定要恢复所有默认设置吗？自定义上传的文件不会被删除。')){
+                await window.electronAPI.resetConfig();
+                await loadConfigAndRender();
+            }
+        }
+
+        // --- 渲染函数：模型设置 ---
+        function renderModelSection(container) {
+            const isCustomModel = config.modelPath && !config.modelPath.includes('default.vrm');
+            
             container.innerHTML = `
                 <div class="form-group">
-                    <label>选择模型</label>
-                    <select id="model-select">
-                        <option value="builtin1">内置模型1</option>
-                        <option value="builtin2">内置模型2</option>
-                        <option value="custom">自定义模型...</option>
-                    </select>
-                </div>
-                <div class="form-group" id="custom-model-upload" style="display:none;">
-                    <label>上传自定义VRM模型</label>
-                    <input type="file" id="model-upload" accept=".vrm" />
+                    <label>当前模型</label>
+                    <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">${config.modelPath || '未设置'}</p>
                 </div>
                 <div class="form-group">
-                    <label>动作设置</label>
-                    <div id="action-list">
-                        <ul class="part-list" id="action-ul">
-                            <li><input type="text" value="默认待机" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        </ul>
-                        <button class="add-part-btn" id="add-action-btn">添加自定义动作</button>
-                    </div>
+                    <label>选择新模型 (.vrm)</label>
+                    <input type="file" id="model-upload" accept=".vrm" style="display: block;"/>
+                    <button id="set-default-model-btn" class="add-part-btn" style="margin-top: 8px;">使用内置模型</button>
+                    ${isCustomModel ? '<button id="delete-custom-model-btn" class="add-part-btn" style="margin-top: 8px; background:#f5eaea;color:#c00;">删除当前自定义模型</button>' : ''}
                 </div>
+                <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
                 <div class="form-group">
                     <label>自定义部位提示</label>
-                    <ul class="part-list" id="part-list">
-                        <li><input type="text" value="头部" class="part-name" style="width:60px;" /> <input type="text" value="不要摸我的头！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        <li><input type="text" value="手臂" class="part-name" style="width:60px;" /> <input type="text" value="手臂被戳到了！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        <li><input type="text" value="腿部" class="part-name" style="width:60px;" /> <input type="text" value="腿部有点痒~" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        <li><input type="text" value="腹部" class="part-name" style="width:60px;" /> <input type="text" value="肚子咕咕叫~" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        <li><input type="text" value="胸部" class="part-name" style="width:60px;" /> <input type="text" value="请注意礼仪！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        <li><input type="text" value="臀部" class="part-name" style="width:60px;" /> <input type="text" value="哎呀！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
-                    </ul>
-                    <button class="add-part-btn" id="add-part-btn">添加自定义部位</button>
+                    <ul class="part-list" id="part-list-container"></ul>
+                    <button class="add-part-btn" id="add-part-btn">添加部位</button>
                 </div>
                 <div style="text-align:right;margin-top:32px;">
-                    <button class="add-part-btn" id="reset-model-btn" style="background:#f5eaea;color:#c00;">恢复默认</button>
+                    <button class="add-part-btn" id="reset-btn" style="background:#f5eaea;color:#c00;">恢复所有默认</button>
                 </div>
             `;
-            // 模型选择
-            const select = container.querySelector('#model-select');
-            const uploadDiv = container.querySelector('#custom-model-upload');
-            select.onchange = () => {
-                uploadDiv.style.display = select.value === 'custom' ? '' : 'none';
-            };
-            // 动作设置
-            const actionUl = container.querySelector('#action-ul');
-            container.querySelector('#add-action-btn').onclick = () => {
+
+            const partListContainer = container.querySelector('#part-list-container');
+            (config.model.partTips || []).forEach((part, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `<input type=\"text\" value=\"自定义动作\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
-                li.querySelector('.remove-part-btn').onclick = () => li.remove();
-                actionUl.appendChild(li);
-            };
-            actionUl.querySelectorAll('.remove-part-btn').forEach(btn => {
-                btn.onclick = (e) => btn.parentElement.remove();
+                li.innerHTML = `
+                    <input type="text" value="${part.name || ''}" class="part-name" placeholder="部位名(如:head)" style="width:80px;" data-index="${index}" />
+                    <input type="text" value="${part.tip || ''}" class="part-tip" placeholder="对应提示语" data-index="${index}" />
+                    <button class="remove-part-btn" title="删除" data-index="${index}">×</button>
+                `;
+                partListContainer.appendChild(li);
             });
-            // 部位提示
-            const partList = container.querySelector('#part-list');
+
+            // --- 事件绑定 ---
+            container.querySelector('#model-upload').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const relativePath = await window.electronAPI.copyToAssets(file.path);
+                    if (isCustomModel) {
+                         await window.electronAPI.deleteFromAssets(config.modelPath);
+                    }
+                    config.modelPath = relativePath;
+                    saveConfig();
+                    renderCurrentSection();
+                } catch (error) {
+                    console.error('上传失败', error);
+                    alert('模型上传失败，请查看控制台日志。');
+                }
+            };
+            
+            container.querySelector('#set-default-model-btn').onclick = async () => {
+                 if (isCustomModel) {
+                    await window.electronAPI.deleteFromAssets(config.modelPath);
+                }
+                config.modelPath = '../../assets/default.vrm';
+                saveConfig();
+                renderCurrentSection();
+            };
+
+            if(isCustomModel) {
+                container.querySelector('#delete-custom-model-btn').onclick = async () => {
+                    if (confirm('确定要删除这个自定义模型文件吗？此操作不可恢复。')) {
+                        await window.electronAPI.deleteFromAssets(config.modelPath);
+                        config.modelPath = '../../assets/default.vrm';
+                        saveConfig();
+                        renderCurrentSection();
+                    }
+                };
+            }
+
             container.querySelector('#add-part-btn').onclick = () => {
-                const li = document.createElement('li');
-                li.innerHTML = `<input type=\"text\" value=\"自定义部位\" class=\"part-name\" style=\"width:60px;\" /> <input type=\"text\" value=\"\" class=\"part-tip\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
-                li.querySelector('.remove-part-btn').onclick = () => li.remove();
-                partList.appendChild(li);
+                if (!config.model.partTips) config.model.partTips = [];
+                config.model.partTips.push({ name: '', tip: '' });
+                renderCurrentSection();
             };
-            partList.querySelectorAll('.remove-part-btn').forEach(btn => {
-                btn.onclick = (e) => btn.parentElement.remove();
+
+            container.querySelectorAll('.remove-part-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    config.model.partTips.splice(index, 1);
+                    saveConfig();
+                    renderCurrentSection();
+                };
             });
-            // 恢复默认
-            container.querySelector('#reset-model-btn').onclick = () => {
-                renderModel(container);
-            };
+            
+            container.querySelectorAll('.part-name, .part-tip').forEach(input => {
+                input.oninput = (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    const key = e.target.classList.contains('part-name') ? 'name' : 'tip';
+                    config.model.partTips[index][key] = e.target.value;
+                    saveConfig();
+                };
+            });
+            
+            container.querySelector('#reset-btn').onclick = resetConfig;
         }
-        // 3D场景设置
-        function renderScene(container) {
+
+        function renderSceneSection(container) {
+            const isCustomStage = config.scene?.stagePath;
+
             container.innerHTML = `
                 <div class="form-group">
-                    <label>姿势设置</label>
-                    <div id="pose-list">
-                        <ul class="part-list" id="pose-ul">
-                            <li><input type="text" value="默认站立" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        </ul>
-                        <button class="add-part-btn" id="add-pose-btn">添加自定义姿势</button>
-                    </div>
+                    <label>当前舞台模型</label>
+                    <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">${config.scene?.stagePath || '无舞台 (透明背景)'}</p>
                 </div>
                 <div class="form-group">
-                    <label>背景设置</label>
-                    <input type="file" id="bg-upload" accept="image/*" />
+                    <label>上传新舞台 (.gltf, .glb)</label>
+                    <input type="file" id="stage-upload" accept=".gltf,.glb" style="display: block;"/>
+                    <button id="remove-custom-stage-btn" class="add-part-btn" style="margin-top: 8px; ${!isCustomStage ? 'display:none;' : ''}"">移除自定义舞台</button>
                 </div>
-                <div class="form-group">
-                    <label>舞台设置</label>
-                    <input type="file" id="stage-upload" accept="image/*,.gltf,.glb" />
-                </div>
-                <div class="form-group">
-                    <label>舞蹈设置</label>
-                    <div id="dance-list">
-                        <ul class="part-list" id="dance-ul">
-                            <li><input type="text" value="默认舞蹈" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
-                        </ul>
-                        <button class="add-part-btn" id="add-dance-btn">添加自定义舞蹈</button>
-                    </div>
-                </div>
-                <div style="text-align:right;margin-top:32px;">
-                    <button class="add-part-btn" id="reset-scene-btn" style="background:#f5eaea;color:#c00;">恢复默认</button>
+                 <div style="text-align:right;margin-top:32px;">
+                    <button class="add-part-btn" id="reset-btn" style="background:#f5eaea;color:#c00;">恢复所有默认</button>
                 </div>
             `;
-            // 姿势
-            const poseUl = container.querySelector('#pose-ul');
-            container.querySelector('#add-pose-btn').onclick = () => {
-                const li = document.createElement('li');
-                li.innerHTML = `<input type=\"text\" value=\"自定义姿势\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
-                li.querySelector('.remove-part-btn').onclick = () => li.remove();
-                poseUl.appendChild(li);
+
+            container.querySelector('#stage-upload').onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const relativePath = await window.electronAPI.copyToAssets(file.path);
+                    if (isCustomStage) {
+                        await window.electronAPI.deleteFromAssets(config.scene.stagePath);
+                    }
+                    if(!config.scene) config.scene = {};
+                    config.scene.stagePath = relativePath;
+                    saveConfig();
+                    renderCurrentSection();
+                } catch (error) {
+                    alert('舞台上传失败');
+                }
             };
-            poseUl.querySelectorAll('.remove-part-btn').forEach(btn => {
-                btn.onclick = (e) => btn.parentElement.remove();
-            });
-            // 舞蹈
-            const danceUl = container.querySelector('#dance-ul');
-            container.querySelector('#add-dance-btn').onclick = () => {
-                const li = document.createElement('li');
-                li.innerHTML = `<input type=\"text\" value=\"自定义舞蹈\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
-                li.querySelector('.remove-part-btn').onclick = () => li.remove();
-                danceUl.appendChild(li);
-            };
-            danceUl.querySelectorAll('.remove-part-btn').forEach(btn => {
-                btn.onclick = (e) => btn.parentElement.remove();
-            });
-            // 恢复默认
-            container.querySelector('#reset-scene-btn').onclick = () => {
-                renderScene(container);
-            };
+            
+            if (isCustomStage) {
+                container.querySelector('#remove-custom-stage-btn').onclick = async () => {
+                    if (confirm('确定要移除自定义舞台吗？')) {
+                        await window.electronAPI.deleteFromAssets(config.scene.stagePath);
+                        delete config.scene.stagePath;
+                        saveConfig();
+                        renderCurrentSection();
+                    }
+                };
+            }
+            
+            container.querySelector('#reset-btn').onclick = resetConfig;
         }
-        // 默认显示3D模型设置
-        renderModel(sectionContent);
+
+        // --- 初始加载 ---
+        loadConfigAndRender();
     </script>
 </body>
 </html> 

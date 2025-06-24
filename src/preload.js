@@ -9,4 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeSettings: () => ipcRenderer.send('close-settings'),
   saveSetting: (key, value) => ipcRenderer.send('save-setting', key, value),
   getSetting: (key) => ipcRenderer.invoke('get-setting', key),
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  setConfig: (config) => ipcRenderer.send('set-config', config),
+  resetConfig: () => ipcRenderer.send('reset-config'),
+  onConfigUpdated: (callback) => ipcRenderer.on('config-updated', (event, ...args) => callback(...args)),
+  copyToAssets: (sourcePath) => ipcRenderer.invoke('copy-to-assets', sourcePath),
+  deleteFromAssets: (rendererRelativePath) => ipcRenderer.invoke('delete-from-assets', rendererRelativePath),
 }); 

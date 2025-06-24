@@ -47,50 +47,77 @@ loader.register((parser) => new VRMLoaderPlugin(parser));
 
 let vrm = null;
 let mixer = null;
-const modelPath = '../../assets/default.vrm';
 
-loader.load(
-  modelPath,
-  (gltf) => {
-    vrm = gltf.userData.vrm;
-    scene.add(vrm.scene);
-    
-    vrm.lookAt.target = lookAtTarget; // 设置视线跟随
-
-    // --- 自动调整视角，确保模型居中 ---
-    const box = new THREE.Box3().setFromObject(vrm.scene);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-
-    // 将模型中心移到世界坐标原点
-    vrm.scene.position.sub(center);
-
-    // 计算合适的摄像机距离以完整显示模型
-    const maxSize = Math.max(size.x, size.y, size.z);
-    const fitHeightDistance = maxSize / (2 * Math.tan(camera.fov * Math.PI / 360));
-    const fitWidthDistance = fitHeightDistance / camera.aspect;
-    const distance = 1.3 * Math.max(fitHeightDistance, fitWidthDistance);
-
-    // 设置摄像机位置
-    camera.position.set(0, 0, distance);
-    
-    // 将控制器目标设为模型的几何中心（原点）
-    controls.target.set(0, 0, 0); 
-    controls.update();
-
-    if (gltf.animations.length > 0) {
-      mixer = new THREE.AnimationMixer(vrm.scene);
-      const action = mixer.clipAction(gltf.animations[0]);
-      action.play();
-    }
-    console.log('VRM 模型加载成功');
-  },
-  (progress) => console.log('加载进度:', 100.0 * (progress.loaded / progress.total), '%'),
-  (error) => {
-    alert('模型加载失败！');
-    console.error('加载失败:', error);
+// --- 加载配置 ---
+async function getConfig() {
+  if (window.electronAPI && window.electronAPI.getConfig) {
+    return await window.electronAPI.getConfig();
   }
-);
+  return null;
+}
+
+let currentModelPath = null;
+
+async function loadModelFromConfig() {
+  const config = await getConfig();
+  if (!config) return;
+  if (config.modelPath && config.modelPath !== currentModelPath) {
+    currentModelPath = config.modelPath;
+    loadVRMModel(currentModelPath);
+  }
+}
+
+// --- VRM模型加载函数，支持切换 ---
+function loadVRMModel(modelPath) {
+  if (vrm) {
+    scene.remove(vrm.scene);
+    vrm = null;
+    mixer = null;
+  }
+  loader.load(
+    modelPath,
+    (gltf) => {
+      vrm = gltf.userData.vrm;
+      scene.add(vrm.scene);
+      vrm.lookAt.target = lookAtTarget;
+      const box = new THREE.Box3().setFromObject(vrm.scene);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      vrm.scene.position.sub(center);
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const fitHeightDistance = maxSize / (2 * Math.tan(camera.fov * Math.PI / 360));
+      const fitWidthDistance = fitHeightDistance / camera.aspect;
+      const distance = 1.3 * Math.max(fitHeightDistance, fitWidthDistance);
+      camera.position.set(0, 0, distance);
+      controls.target.set(0, 0, 0);
+      controls.update();
+      if (gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(vrm.scene);
+        const action = mixer.clipAction(gltf.animations[0]);
+        action.play();
+      }
+      console.log('VRM 模型加载成功');
+    },
+    (progress) => console.log('加载进度:', 100.0 * (progress.loaded / progress.total), '%'),
+    (error) => {
+      alert('模型加载失败！');
+      console.error('加载失败:', error);
+    }
+  );
+}
+
+// --- 启动时加载配置模型 ---
+loadModelFromConfig();
+
+// --- 监听配置变更，实时切换模型 ---
+if (window.electronAPI && window.electronAPI.onConfigUpdated) {
+  window.electronAPI.onConfigUpdated((config) => {
+    if (config.modelPath && config.modelPath !== currentModelPath) {
+      currentModelPath = config.modelPath;
+      loadVRMModel(currentModelPath);
+    }
+  });
+}
 
 // --- 动画循环 ---
 const clock = new THREE.Clock();

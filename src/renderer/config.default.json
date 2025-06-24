@@ -1,0 +1,8 @@
+{
+  "modelPath": "../../assets/default.vrm",
+  "action": "idle",
+  "appearance": {
+    "scale": 1.0,
+    "background": "transparent"
+  }
+} 
