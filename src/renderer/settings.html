@@ -4,17 +4,272 @@
     <meta charset="UTF-8">
     <title>设置</title>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; background: #f8f8f8; }
-        .settings-container {
-            padding: 24px 24px 16px 24px;
+        html, body {
+            width: 100%; height: 100%; margin: 0; padding: 0; background: #f6f7fb;
         }
-        h2 { margin-top: 0; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Arial', sans-serif;
+            color: #222;
+            overflow: hidden;
+        }
+        .settings-root {
+            width: 100vw; height: 100vh;
+            display: flex;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        .settings-sidebar {
+            width: 160px;
+            background: #f6f7fb;
+            border-right: 1px solid #ececec;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding-top: 48px;
+            position: relative;
+            -webkit-app-region: drag;
+        }
+        .settings-sidebar .menu-item {
+            width: 100%;
+            padding: 12px 24px;
+            font-size: 16px;
+            color: #666;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 6px 0 0 6px;
+            margin-bottom: 4px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-sidebar .menu-item.active, .settings-sidebar .menu-item:hover {
+            background: #e3e7f0;
+            color: #222;
+        }
+        .settings-content {
+            flex: 1;
+            padding: 48px 32px 32px 32px;
+            position: relative;
+            overflow-y: auto;
+        }
+        .settings-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            background: rgba(180,180,180,0.08);
+            border: none;
+            border-radius: 50%;
+            color: #888;
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.2s, color 0.2s;
+            -webkit-app-region: no-drag;
+        }
+        .close-btn:hover {
+            background: rgba(180,180,180,0.18);
+            color: #222;
+        }
+        /* 拖拽区域 */
+        .settings-drag-bar {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 40px;
+            -webkit-app-region: drag;
+            z-index: 2;
+        }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-size: 15px; color: #444; }
+        select, input[type="text"], input[type="file"], textarea { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 15px; background: #fafbfc; }
+        .part-list { margin: 0; padding: 0; list-style: none; }
+        .part-list li { display: flex; align-items: center; margin-bottom: 8px; }
+        .part-list input[type="text"] { flex: 1; margin-right: 8px; }
+        .add-part-btn { margin-top: 8px; padding: 5px 12px; border: none; border-radius: 5px; background: #e3e7f0; color: #333; cursor: pointer; font-size: 14px; }
+        .add-part-btn:hover { background: #d0d6e1; }
+        .remove-part-btn { background: none; border: none; color: #c00; font-size: 18px; cursor: pointer; margin-left: 4px; }
     </style>
 </head>
 <body>
-    <div class="settings-container">
-        <h2>设置</h2>
-        <p>这里可以扩展更多设置项...</p>
+    <div class="settings-root">
+        <div class="settings-sidebar">
+            <div class="settings-drag-bar"></div>
+            <button class="menu-item active" data-section="model">3D模型</button>
+            <button class="menu-item" data-section="scene">3D场景</button>
+        </div>
+        <div class="settings-content" id="settings-content">
+            <div class="settings-title">3D模型设置</div>
+            <div id="settings-section-content"></div>
+        </div>
+        <button class="close-btn" id="close-settings">×</button>
     </div>
+    <script type="module">
+        // 关闭按钮
+        document.getElementById('close-settings').onclick = () => {
+            window.electronAPI && window.electronAPI.closeSettings();
+        };
+        // 菜单切换
+        const menuItems = document.querySelectorAll('.menu-item');
+        const sectionContent = document.getElementById('settings-section-content');
+        const title = document.querySelector('.settings-title');
+        const sectionMap = {
+            model: { title: '3D模型设置', render: renderModel },
+            scene: { title: '3D场景设置', render: renderScene },
+        };
+        let currentSection = 'model';
+        menuItems.forEach(item => {
+            item.onclick = () => {
+                menuItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                const sec = item.getAttribute('data-section');
+                currentSection = sec;
+                title.textContent = sectionMap[sec].title;
+                sectionContent.innerHTML = '';
+                sectionMap[sec].render(sectionContent);
+            };
+        });
+        // 3D模型设置
+        function renderModel(container) {
+            container.innerHTML = `
+                <div class="form-group">
+                    <label>选择模型</label>
+                    <select id="model-select">
+                        <option value="builtin1">内置模型1</option>
+                        <option value="builtin2">内置模型2</option>
+                        <option value="custom">自定义模型...</option>
+                    </select>
+                </div>
+                <div class="form-group" id="custom-model-upload" style="display:none;">
+                    <label>上传自定义VRM模型</label>
+                    <input type="file" id="model-upload" accept=".vrm" />
+                </div>
+                <div class="form-group">
+                    <label>动作设置</label>
+                    <div id="action-list">
+                        <ul class="part-list" id="action-ul">
+                            <li><input type="text" value="默认待机" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        </ul>
+                        <button class="add-part-btn" id="add-action-btn">添加自定义动作</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>自定义部位提示</label>
+                    <ul class="part-list" id="part-list">
+                        <li><input type="text" value="头部" class="part-name" style="width:60px;" /> <input type="text" value="不要摸我的头！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        <li><input type="text" value="手臂" class="part-name" style="width:60px;" /> <input type="text" value="手臂被戳到了！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        <li><input type="text" value="腿部" class="part-name" style="width:60px;" /> <input type="text" value="腿部有点痒~" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        <li><input type="text" value="腹部" class="part-name" style="width:60px;" /> <input type="text" value="肚子咕咕叫~" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        <li><input type="text" value="胸部" class="part-name" style="width:60px;" /> <input type="text" value="请注意礼仪！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        <li><input type="text" value="臀部" class="part-name" style="width:60px;" /> <input type="text" value="哎呀！" class="part-tip" /> <button class="remove-part-btn" title="删除">×</button></li>
+                    </ul>
+                    <button class="add-part-btn" id="add-part-btn">添加自定义部位</button>
+                </div>
+                <div style="text-align:right;margin-top:32px;">
+                    <button class="add-part-btn" id="reset-model-btn" style="background:#f5eaea;color:#c00;">恢复默认</button>
+                </div>
+            `;
+            // 模型选择
+            const select = container.querySelector('#model-select');
+            const uploadDiv = container.querySelector('#custom-model-upload');
+            select.onchange = () => {
+                uploadDiv.style.display = select.value === 'custom' ? '' : 'none';
+            };
+            // 动作设置
+            const actionUl = container.querySelector('#action-ul');
+            container.querySelector('#add-action-btn').onclick = () => {
+                const li = document.createElement('li');
+                li.innerHTML = `<input type=\"text\" value=\"自定义动作\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
+                li.querySelector('.remove-part-btn').onclick = () => li.remove();
+                actionUl.appendChild(li);
+            };
+            actionUl.querySelectorAll('.remove-part-btn').forEach(btn => {
+                btn.onclick = (e) => btn.parentElement.remove();
+            });
+            // 部位提示
+            const partList = container.querySelector('#part-list');
+            container.querySelector('#add-part-btn').onclick = () => {
+                const li = document.createElement('li');
+                li.innerHTML = `<input type=\"text\" value=\"自定义部位\" class=\"part-name\" style=\"width:60px;\" /> <input type=\"text\" value=\"\" class=\"part-tip\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
+                li.querySelector('.remove-part-btn').onclick = () => li.remove();
+                partList.appendChild(li);
+            };
+            partList.querySelectorAll('.remove-part-btn').forEach(btn => {
+                btn.onclick = (e) => btn.parentElement.remove();
+            });
+            // 恢复默认
+            container.querySelector('#reset-model-btn').onclick = () => {
+                renderModel(container);
+            };
+        }
+        // 3D场景设置
+        function renderScene(container) {
+            container.innerHTML = `
+                <div class="form-group">
+                    <label>姿势设置</label>
+                    <div id="pose-list">
+                        <ul class="part-list" id="pose-ul">
+                            <li><input type="text" value="默认站立" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        </ul>
+                        <button class="add-part-btn" id="add-pose-btn">添加自定义姿势</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>背景设置</label>
+                    <input type="file" id="bg-upload" accept="image/*" />
+                </div>
+                <div class="form-group">
+                    <label>舞台设置</label>
+                    <input type="file" id="stage-upload" accept="image/*,.gltf,.glb" />
+                </div>
+                <div class="form-group">
+                    <label>舞蹈设置</label>
+                    <div id="dance-list">
+                        <ul class="part-list" id="dance-ul">
+                            <li><input type="text" value="默认舞蹈" class="part-name" style="width:80px;" /> <button class="remove-part-btn" title="删除">×</button></li>
+                        </ul>
+                        <button class="add-part-btn" id="add-dance-btn">添加自定义舞蹈</button>
+                    </div>
+                </div>
+                <div style="text-align:right;margin-top:32px;">
+                    <button class="add-part-btn" id="reset-scene-btn" style="background:#f5eaea;color:#c00;">恢复默认</button>
+                </div>
+            `;
+            // 姿势
+            const poseUl = container.querySelector('#pose-ul');
+            container.querySelector('#add-pose-btn').onclick = () => {
+                const li = document.createElement('li');
+                li.innerHTML = `<input type=\"text\" value=\"自定义姿势\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
+                li.querySelector('.remove-part-btn').onclick = () => li.remove();
+                poseUl.appendChild(li);
+            };
+            poseUl.querySelectorAll('.remove-part-btn').forEach(btn => {
+                btn.onclick = (e) => btn.parentElement.remove();
+            });
+            // 舞蹈
+            const danceUl = container.querySelector('#dance-ul');
+            container.querySelector('#add-dance-btn').onclick = () => {
+                const li = document.createElement('li');
+                li.innerHTML = `<input type=\"text\" value=\"自定义舞蹈\" class=\"part-name\" style=\"width:80px;\" /> <button class=\"remove-part-btn\" title=\"删除\">×</button>`;
+                li.querySelector('.remove-part-btn').onclick = () => li.remove();
+                danceUl.appendChild(li);
+            };
+            danceUl.querySelectorAll('.remove-part-btn').forEach(btn => {
+                btn.onclick = (e) => btn.parentElement.remove();
+            });
+            // 恢复默认
+            container.querySelector('#reset-scene-btn').onclick = () => {
+                renderScene(container);
+            };
+        }
+        // 默认显示3D模型设置
+        renderModel(sectionContent);
+    </script>
 </body>
 </html> 

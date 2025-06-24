@@ -1,5 +1,12 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron');
 const path = require('path');
+let Store;
+let store;
+
+(async () => {
+  Store = (await import('electron-store')).default;
+  store = new Store();
+})();
 
 let mainWindow;
 let tray;
@@ -33,14 +40,16 @@ function createSettingsWindow() {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 400,
-    height: 500,
-    resizable: false,
+    width: 600,
+    height: 420,
+    resizable: true,
     minimizable: false,
     maximizable: false,
     alwaysOnTop: true,
-    frame: true,
+    frame: false,
+    transparent: false,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -57,6 +66,26 @@ ipcMain.on('show-context-menu', (event) => {
     { label: '退出', click: () => app.quit() },
   ]);
   menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
+});
+
+ipcMain.on('close-settings', () => {
+  if (settingsWindow) settingsWindow.close();
+});
+
+ipcMain.on('save-setting', async (event, key, value) => {
+  if (!store) {
+    Store = (await import('electron-store')).default;
+    store = new Store();
+  }
+  store.set(key, value);
+});
+
+ipcMain.handle('get-setting', async (event, key) => {
+  if (!store) {
+    Store = (await import('electron-store')).default;
+    store = new Store();
+  }
+  return store.get(key);
 });
 
 app.on('ready', () => {
