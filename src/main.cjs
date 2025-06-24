@@ -12,10 +12,32 @@ let mainWindow;
 let tray;
 let settingsWindow = null;
 
+// 简单防抖函数
+function debounce(fn, delay) {
+  let timer = null;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+const saveWindowBounds = () => {
+  if (mainWindow) {
+    const bounds = mainWindow.getBounds();
+    store.set('windowBounds', bounds);
+  }
+};
+
+const debouncedSaveWindowBounds = debounce(saveWindowBounds, 300);
+
 function createWindow() {
+  const windowBounds = store.get('windowBounds') || { width: 300, height: 400 };
+
   mainWindow = new BrowserWindow({
-    width: 300,
-    height: 400,
+    x: windowBounds.x,
+    y: windowBounds.y,
+    width: windowBounds.width,
+    height: windowBounds.height,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -28,6 +50,13 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
+
+  mainWindow.on('close', () => {
+    saveWindowBounds(); // 关闭时强制保存一次
+  });
+
+  mainWindow.on('move', debouncedSaveWindowBounds);
+  mainWindow.on('resize', debouncedSaveWindowBounds);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -88,7 +117,11 @@ ipcMain.handle('get-setting', async (event, key) => {
   return store.get(key);
 });
 
-app.on('ready', () => {
+app.on('ready', async () => {
+  if (!store) {
+    Store = (await import('electron-store')).default;
+    store = new Store();
+  }
   createWindow();
 
   // 托盘菜单
