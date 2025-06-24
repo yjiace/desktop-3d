@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>桌面3D伙伴</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "../../node_modules/three/build/three.module.js",
+        "three/examples/jsm/loaders/GLTFLoader.js": "../../node_modules/three/examples/jsm/loaders/GLTFLoader.js",
+        "three/examples/jsm/controls/OrbitControls.js": "../../node_modules/three/examples/jsm/controls/OrbitControls.js",
+        "@pixiv/three-vrm": "../../node_modules/@pixiv/three-vrm/lib/three-vrm.module.js"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="character-container">
+        <div id="menu-bar">
+            <div id="drag-button" title="拖动窗口">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-move"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
+            </div>
+            <button id="pin-button" title="固定/解除固定">
+                <span class="icon-svg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-lock"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+            </button>
+        </div>
+        <div id="viewer"></div>
+    </div>
+    <div id="speech-bubble"></div>
+    <script type="module" src="app.js"></script>
+</body>
+</html> 
