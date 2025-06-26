@@ -428,6 +428,23 @@
                             </label>
                         </label>
                     </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <span>语音播报</span>
+                            <label class="switch">
+                                <input type="checkbox" id="bubble-tts-checkbox" ${config.model.bubbleTTS ? 'checked' : ''} ${config.model.allowBubble === false ? 'disabled' : ''}/>
+                                <span class="slider"></span>
+                            </label>
+                        </label>
+                    </div>
+                    <div class="form-group" id="bubble-tts-options" style="margin-top:-10px;${!config.model.bubbleTTS ? 'opacity:0.5;pointer-events:none;' : ''}">
+                        <label style="font-size:13px;margin-bottom:4px;">语音类型</label>
+                        <select id="bubble-tts-voice" style="width:100%;margin-bottom:8px;"></select>
+                        <label style="font-size:13px;">语速 <span id="bubble-tts-rate-value">${config.model.bubbleTTSRate||1}</span></label>
+                        <input type="range" id="bubble-tts-rate" min="0.5" max="2" step="0.01" value="${config.model.bubbleTTSRate||1}" style="width:100%;">
+                        <label style="font-size:13px;">音量 <span id="bubble-tts-volume-value">${config.model.bubbleTTSVolume||1}</span></label>
+                        <input type="range" id="bubble-tts-volume" min="0" max="1" step="0.01" value="${config.model.bubbleTTSVolume||1}" style="width:100%;">
+                    </div>
                     <div class="builtin-parts">
                         <h4>内置部位提示</h4>
                         <ul class="part-list" id="builtin-part-list"></ul>
@@ -611,6 +628,54 @@
             // 新增：交互开关事件
             container.querySelector('#allow-bubble-checkbox').onchange = (e) => {
                 config.model.allowBubble = e.target.checked;
+                // 联动语音开关
+                const ttsBox = container.querySelector('#bubble-tts-checkbox');
+                if(ttsBox) ttsBox.disabled = !e.target.checked;
+                saveConfig();
+            };
+
+            // 新增：语音播报开关事件
+            container.querySelector('#bubble-tts-checkbox').onchange = (e) => {
+                config.model.bubbleTTS = e.target.checked;
+                // 语音参数面板可用性
+                const opts = container.querySelector('#bubble-tts-options');
+                if(opts) {
+                    if(e.target.checked) {
+                        opts.style.opacity = 1;
+                        opts.style.pointerEvents = '';
+                    } else {
+                        opts.style.opacity = 0.5;
+                        opts.style.pointerEvents = 'none';
+                    }
+                }
+                saveConfig();
+            };
+
+            // 语速、音量事件
+            container.querySelector('#bubble-tts-rate').oninput = (e) => {
+                config.model.bubbleTTSRate = parseFloat(e.target.value);
+                container.querySelector('#bubble-tts-rate-value').innerText = e.target.value;
+                saveConfig();
+            };
+            container.querySelector('#bubble-tts-volume').oninput = (e) => {
+                config.model.bubbleTTSVolume = parseFloat(e.target.value);
+                container.querySelector('#bubble-tts-volume-value').innerText = e.target.value;
+                saveConfig();
+            };
+
+            // 语音类型下拉
+            const voiceSelect = container.querySelector('#bubble-tts-voice');
+            function fillVoices() {
+                if(!window.speechSynthesis) return;
+                const voices = window.speechSynthesis.getVoices();
+                voiceSelect.innerHTML = voices.map(v => `<option value="${v.voiceURI}" ${config.model.bubbleTTSVoice===v.voiceURI?'selected':''}>${v.name} (${v.lang})</option>`).join('');
+            }
+            if(window.speechSynthesis) {
+                window.speechSynthesis.onvoiceschanged = fillVoices;
+                fillVoices();
+            }
+            voiceSelect.onchange = (e) => {
+                config.model.bubbleTTSVoice = e.target.value;
                 saveConfig();
             };
         }

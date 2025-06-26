@@ -141,6 +141,34 @@ function showSpeechBubble(text, clickedObject) {
     
     // 设置气泡文本
     speechBubble.textContent = text;
+
+    // 语音播报功能
+    (async () => {
+        const config = await getConfig();
+        if (config?.model?.bubbleTTS && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            const utter = new window.SpeechSynthesisUtterance(text);
+            // 语音类型
+            if(config.model.bubbleTTSVoice) {
+                const voices = window.speechSynthesis.getVoices();
+                const v = voices.find(v=>v.voiceURI===config.model.bubbleTTSVoice);
+                if(v) utter.voice = v;
+            }
+            // 语速
+            utter.rate = config.model.bubbleTTSRate || 1;
+            // 音量
+            utter.volume = config.model.bubbleTTSVolume || 1;
+            // 自动选择语言（如未指定语音类型）
+            if (!utter.voice) {
+                if (/[\u0000-\u007f]/.test(text) && !/[\u4e00-\u9fa5]/.test(text)) {
+                    utter.lang = 'en-US';
+                } else {
+                    utter.lang = 'zh-CN';
+                }
+            }
+            window.speechSynthesis.speak(utter);
+        }
+    })();
     
     let x = window.innerWidth / 2;
     let y = 50;
