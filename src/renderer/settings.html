@@ -243,6 +243,20 @@
             { name: 'FoxGirl', path: '../../assets/FoxGirl.vrm' },
             { name: '冨美江', path: '../../assets/冨美江.vrm' }
         ];
+        // 新增：记录初始配置用于临时切换
+        let originalConfig = null;
+        // 动作列表（可根据实际支持扩展）
+        const availableActions = [
+            { name: '待机', value: 'idle' },
+            { name: '随机循环', value: 'random_cycle' },
+            { name: '走路', value: 'walk' },
+            { name: '跑步', value: 'run' },
+            { name: '跳跃', value: 'jump' },
+            { name: '挥手', value: 'wave' },
+            { name: '跳舞', value: 'dance' },
+            { name: '胜利', value: 'victory' },
+            { name: '失败', value: 'defeat' }
+        ];
         
         const sectionMap = {
             model: { title: '3D模型设置', render: renderModelSection },
@@ -266,6 +280,8 @@
 
         async function loadConfigAndRender() {
             config = (await window.electronAPI.getConfig()) || {};
+            // 记录初始配置
+            if (!originalConfig) originalConfig = JSON.parse(JSON.stringify(config));
             // 确保配置对象中有基本结构
             config.model = config.model || {};
             config.scene = config.scene || {};
@@ -294,6 +310,10 @@
 
         // --- 事件监听 ---
         closeButton.onclick = () => {
+            // 恢复原始配置（未保存时）
+            if (originalConfig) {
+                window.electronAPI.setConfig(originalConfig);
+            }
             window.electronAPI && window.electronAPI.closeSettings();
         };
 
@@ -310,7 +330,11 @@
         async function resetConfig() {
             if(confirm('确定要恢复所有默认设置吗？自定义上传的文件不会被删除。')){
                 await window.electronAPI.resetConfig();
-                await loadConfigAndRender();
+                config = (await window.electronAPI.getConfig()) || {};
+                originalConfig = JSON.parse(JSON.stringify(config));
+                renderCurrentSection(); // 刷新UI控件
+                // 主动同步到主窗口，确保3D状态实时变更
+                window.electronAPI.setConfig(config);
             }
         }
 
@@ -341,8 +365,9 @@
                     <h4>部位提示（仅可编辑内容）</h4>
                     <ul class="part-list" id="builtin-part-list"></ul>
                 </div>
-                <div style="text-align:right;margin-top:32px;">
+                <div style="display:flex;justify-content: flex-end;gap:12px;margin-top:32px;">
                     <button class="add-part-btn btn-danger" id="reset-btn">恢复所有默认</button>
+                    <button class="add-part-btn" id="save-model-section-btn">保存</button>
                 </div>
             `;
 
@@ -379,52 +404,154 @@
                     saveConfig();
                 };
             });
+            // 切换模型时临时生效
+            container.querySelector('#model-select').onchange = (e) => {
+                config.modelPath = e.target.value;
+                window.electronAPI.setConfig(config); // 临时生效
+            };
             container.querySelector('#reset-btn').onclick = resetConfig;
+            container.querySelector('#save-model-section-btn').onclick = async () => {
+                // 保存当前模型设置到数据库
+                await window.electronAPI.setConfig(config);
+                // 更新原始配置
+                originalConfig = JSON.parse(JSON.stringify(config));
+                alert('模型设置已保存！');
+                // 主动同步到主窗口，确保3D状态实时变更
+                window.electronAPI.setConfig(config);
+                renderCurrentSection(); // 刷新UI控件
+            };
         }
 
+        // --- 渲染函数：场景设置 ---
         function renderSceneSection(container) {
             const isCustomStage = config.scene?.stagePath;
 
             container.innerHTML = `
                 <div class="form-group">
-                    <label>当前舞台模型</label>
-                    <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">${config.scene?.stagePath || '无舞台 (透明背景)'}</p>
+                    <label>舞台模型</label>
+                    <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">
+                        ${isCustomStage ? config.scene.stagePath : '无舞台 (透明背景)'}
+                    </p>
+                    <div style="margin-top: 8px; display: flex; gap: 8px;">
+                        <input type="file" id="stage-upload-input" accept=".glb,.gltf,.vrm" style="display:none;">
+                        <button id="stage-upload-btn" class="add-part-btn">上传新舞台</button>
+                        ${isCustomStage ? `<button id="remove-stage-btn" class="add-part-btn btn-danger">移除舞台</button>` : ''}
+                    </div>
                 </div>
-                 <div style="text-align:right;margin-top:32px;">
+                <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
+                <div class="form-group">
+                    <label>默认动态</label>
+                    <select id="scene-action-select">
+                        ${availableActions.map(a => `<option value="${a.value}" ${config.action === a.value ? 'selected' : ''}>${a.name}</option>`).join('')}
+                    </select>
+                    <div id="supported-animations" style="font-size:12px;color:#888;margin-top:6px;"></div>
+                </div>
+                <div class="form-group">
+                    <h4>自定义动作</h4>
+                    <p style="font-size:12px; color: #666;">程序会自动加载模型内包含的动画。选择"随机循环"可以在所有可用动画中随机播放。</p>
+                </div>
+                <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
+                <div class="form-group">
+                    <label>背景色</label>
+                    <input type="color" id="scene-bgcolor" value="${config.appearance?.background && config.appearance.background !== 'transparent' ? config.appearance.background : '#ffffff'}" />
+                    <label style="margin-left:8px;"><input type="checkbox" id="scene-bgtrans" ${config.appearance?.background === 'transparent' ? 'checked' : ''}/> 透明背景</label>
+                </div>
+                <div class="form-group">
+                    <label>灯光强度</label>
+                    <input type="range" id="scene-light" min="0" max="2" step="0.01" value="${config.scene?.lightIntensity || 1}" />
+                    <span id="scene-light-value">${config.scene?.lightIntensity || 1}</span>
+                </div>
+                <div style="display:flex;justify-content: flex-end;gap:12px;margin-top:32px;">
                     <button class="add-part-btn btn-danger" id="reset-btn">恢复所有默认</button>
+                    <button class="add-part-btn" id="save-scene-section-btn">保存</button>
                 </div>
             `;
 
-            container.querySelector('#stage-upload').onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    const relativePath = await window.electronAPI.copyToAssets(file.path);
-                    if (isCustomStage) {
-                        await window.electronAPI.deleteFromAssets(config.scene.stagePath);
-                    }
-                    if(!config.scene) config.scene = {};
-                    config.scene.stagePath = relativePath;
-                    saveConfig();
-                    renderCurrentSection();
-                } catch (error) {
-                    alert('舞台上传失败');
-                }
+            // --- 场景设置事件监听 ---
+            
+            // 封装一个函数用于更新配置并触发预览
+            const updateConfigAndPreview = () => {
+                window.electronAPI.setConfig(config);
             };
             
-            if (isCustomStage) {
-                container.querySelector('#remove-custom-stage-btn').onclick = async () => {
-                    if (confirm('确定要移除自定义舞台吗？')) {
-                        await window.electronAPI.deleteFromAssets(config.scene.stagePath);
-                        delete config.scene.stagePath;
-                        saveConfig();
-                        renderCurrentSection();
-                    }
+            // 舞台上传
+            const stageUploadBtn = container.querySelector('#stage-upload-btn');
+            const stageUploadInput = container.querySelector('#stage-upload-input');
+            if (stageUploadBtn && stageUploadInput) {
+                stageUploadBtn.onclick = () => stageUploadInput.click();
+                stageUploadInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                        const newPath = await window.electronAPI.copyToAssets(file.path);
+                        if (!config.scene) config.scene = {};
+                        config.scene.stagePath = newPath;
+                        updateConfigAndPreview();
+                        renderCurrentSection(); // 重新渲染以更新UI
+                } catch (error) {
+                        alert(`舞台上传失败: ${error.message}`);
+                }
+            };
+            }
+
+            // 移除舞台
+            const removeStageBtn = container.querySelector('#remove-stage-btn');
+            if (removeStageBtn) {
+                removeStageBtn.onclick = async () => {
+                    delete config.scene.stagePath;
+                    updateConfigAndPreview();
+                    renderCurrentSection();
                 };
             }
             
+            // 动态选择
+            container.querySelector('#scene-action-select').onchange = (e) => {
+                config.action = e.target.value;
+                updateConfigAndPreview();
+            };
+
+            // 背景色和透明
+            container.querySelector('#scene-bgcolor').oninput = (e) => {
+                if (!config.appearance) config.appearance = {};
+                config.appearance.background = e.target.value;
+                container.querySelector('#scene-bgtrans').checked = false;
+                updateConfigAndPreview();
+            };
+            container.querySelector('#scene-bgtrans').onchange = (e) => {
+                if (!config.appearance) config.appearance = {};
+                config.appearance.background = e.target.checked ? 'transparent' : container.querySelector('#scene-bgcolor').value;
+                updateConfigAndPreview();
+            };
+
+            // 灯光强度
+            container.querySelector('#scene-light').oninput = (e) => {
+                if (!config.scene) config.scene = {};
+                config.scene.lightIntensity = parseFloat(e.target.value);
+                container.querySelector('#scene-light-value').textContent = e.target.value;
+                updateConfigAndPreview();
+            };
+
+            // 保存按钮
             container.querySelector('#reset-btn').onclick = resetConfig;
+            container.querySelector('#save-scene-section-btn').onclick = async () => {
+                await window.electronAPI.setConfig(config);
+                originalConfig = JSON.parse(JSON.stringify(config)); // 更新原始配置为已保存状态
+                alert('场景设置已保存！');
+                // 主动同步到主窗口，确保3D状态实时变更
+                window.electronAPI.setConfig(config);
+                renderCurrentSection(); // 刷新UI控件
+            };
+
+            // 动态显示当前模型支持的动画名
+            if(window.electronAPI && window.electronAPI.getConfig){
+                window.electronAPI.getConfig().then(cfg=>{
+                    if(cfg && cfg._animationNames){
+                        container.querySelector('#supported-animations').innerText = '当前模型支持的动画：' + cfg._animationNames.join('，');
+                    }else{
+                        container.querySelector('#supported-animations').innerText = '当前模型支持的动画：idle（如需更多动画请更换模型）';
+                    }
+                });
+            }
         }
 
         // --- 初始加载 ---

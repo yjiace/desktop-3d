@@ -5,6 +5,10 @@
     "scale": 1.0,
     "background": "transparent"
   },
+  "scene": {
+    "lightIntensity": 1.0,
+    "stagePath": ""
+  },
   "modelState": {
     "scale": 1.0,
     "cameraPosition": [0, 0, 3],

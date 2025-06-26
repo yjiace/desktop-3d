@@ -13,6 +13,9 @@ let partResponses = {
 };
 let defaultGreetings = ["你好！"];
 let isFixed = false;
+let currentAction = 'idle';
+let randomAnimationInterval = null;
+let animationClips = [];
 
 // --- 部位提示配置 ---
 let partTips = {
@@ -21,7 +24,8 @@ let partTips = {
     legs: "腿部",
     chest: "胸部",
     belly: "腹部",
-    hips: "臀部"
+    hips: "臀部",
+    isFixed: false
 };
 
 // --- 状态保存相关 ---
@@ -59,6 +63,67 @@ async function getModelState() {
         return await window.electronAPI.getModelState();
     }
     return modelState;
+}
+
+function playAnimation(name) {
+    if (!mixer || !animationClips.length) return;
+
+    mixer.stopAllAction();
+
+    const clip = THREE.AnimationClip.findByName(animationClips, name);
+    if (clip) {
+        const action = mixer.clipAction(clip);
+        action.play();
+    } else if (animationClips.length > 0) {
+        const fallbackAction = mixer.clipAction(animationClips[0]);
+        fallbackAction.play();
+        console.warn('未找到动画：' + name + '，已回退到第一个动画：' + animationClips[0].name);
+    } else {
+        console.warn('当前模型没有任何动画，无法播放。');
+    }
+}
+
+function setAppAction(actionName) {
+    currentAction = actionName;
+
+    if (randomAnimationInterval) {
+        clearInterval(randomAnimationInterval);
+        randomAnimationInterval = null;
+    }
+
+    if (actionName === 'random_cycle') {
+        if (animationClips.length > 0) {
+            const playRandom = () => {
+                const randomIndex = Math.floor(Math.random() * animationClips.length);
+                playAnimation(animationClips[randomIndex].name);
+            };
+            playRandom();
+            randomAnimationInterval = setInterval(playRandom, 10000); // 每10秒切换一次
+        } else {
+             if(mixer) mixer.stopAllAction();
+        }
+    } else {
+        playAnimation(actionName);
+    }
+}
+
+function applySceneSettings(config) {
+    // 背景
+    if (config.appearance?.background) {
+        const bgColor = config.appearance.background;
+        if (bgColor === 'transparent') {
+            renderer.setClearAlpha(0);
+            scene.background = null;
+        } else {
+            renderer.setClearAlpha(1);
+            scene.background = new THREE.Color(bgColor);
+        }
+    }
+
+    // 灯光
+    if (config.scene?.lightIntensity !== undefined) {
+        light.intensity = config.scene.lightIntensity;
+    }
 }
 
 // --- 气泡显示功能 ---
@@ -156,6 +221,8 @@ function setupClickEvents() {
 
 // 修改点击事件处理函数
 function onMouseClick(event) {
+    // 只响应左键
+    if (event.button !== 0) return;
     console.log('点击事件触发:', event.type, '目标:', event.target);
     
     if (isFixed) {
@@ -379,9 +446,16 @@ let currentModelPath = null;
 async function loadModelFromConfig() {
   const config = await getConfig();
   if (!config) return;
+
+  applySceneSettings(config);
+  
   if (config.modelPath && config.modelPath !== currentModelPath) {
     currentModelPath = config.modelPath;
-    loadVRMModel(currentModelPath);
+    loadVRMModel(currentModelPath, () => {
+        setAppAction(config.action || 'idle');
+    });
+  } else {
+    setAppAction(config.action || 'idle');
   }
   
   // 加载部位提示配置
@@ -389,11 +463,13 @@ async function loadModelFromConfig() {
 }
 
 // --- VRM模型加载函数，支持切换 ---
-function loadVRMModel(modelPath) {
+function loadVRMModel(modelPath, onLoadCallback) {
   if (vrm) {
     scene.remove(vrm.scene);
     vrm = null;
+    if(mixer) mixer.stopAllAction();
     mixer = null;
+    animationClips = [];
   }
   loader.load(
     modelPath,
@@ -407,6 +483,11 @@ function loadVRMModel(modelPath) {
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       vrm.scene.position.sub(center);
+      
+      animationClips = gltf.animations;
+      if (animationClips.length > 0) {
+        mixer = new THREE.AnimationMixer(vrm.scene);
+      }
       
       // 加载保存的状态
       const savedState = await getModelState();
@@ -469,6 +550,17 @@ function loadVRMModel(modelPath) {
       }, 1000);
       
       console.log('VRM 模型加载成功，点击事件已重新设置');
+
+      if (onLoadCallback) {
+        onLoadCallback();
+      }
+
+      // 将动画名写入config，供设置页面显示
+      if(window.electronAPI && window.electronAPI.getConfig && window.electronAPI.setConfig){
+          let cfg = await window.electronAPI.getConfig();
+          cfg._animationNames = animationClips.map(a=>a.name);
+          window.electronAPI.setConfig(cfg);
+      }
     },
     (progress) => console.log('加载进度:', 100.0 * (progress.loaded / progress.total), '%'),
     (error) => {
@@ -484,9 +576,15 @@ loadModelFromConfig();
 // --- 监听配置变更，实时切换模型 ---
 if (window.electronAPI && window.electronAPI.onConfigUpdated) {
   window.electronAPI.onConfigUpdated((config) => {
+    applySceneSettings(config);
+
     if (config.modelPath && config.modelPath !== currentModelPath) {
       currentModelPath = config.modelPath;
-      loadVRMModel(currentModelPath);
+      loadVRMModel(currentModelPath, () => {
+        setAppAction(config.action);
+      });
+    } else if (config.action && config.action !== currentAction) {
+      setAppAction(config.action);
     }
     
     // 重新加载部位提示配置
