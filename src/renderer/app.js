@@ -142,33 +142,75 @@ function showSpeechBubble(text, clickedObject) {
     // 设置气泡文本
     speechBubble.textContent = text;
     
-    // 计算气泡位置（始终在模型头部上方）
+    let x = window.innerWidth / 2;
+    let y = 50;
+    let preferAbove = true;
     if (vrm && vrm.scene) {
         // 获取模型的头部位置
         const headPosition = getHeadPosition();
-        
         // 将头部3D世界坐标转换为屏幕坐标
         const vector = new THREE.Vector3();
         vector.copy(headPosition);
         vector.project(camera);
-        
-        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
-        
-        // 调整位置，让气泡显示在头部上方
-        speechBubble.style.left = x + 'px';
-        speechBubble.style.top = (y - 120) + 'px';
-        speechBubble.style.transform = 'translateX(-50%)';
-    } else {
-        // 默认位置（屏幕中央上方）
-        speechBubble.style.left = '50%';
-        speechBubble.style.top = '50px';
-        speechBubble.style.transform = 'translateX(-50%)';
+        x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        y = (-vector.y * 0.5 + 0.5) * window.innerHeight - 90; // 更贴近头部
+        preferAbove = true;
     }
-    
+    // 先设置到理想位置
+    speechBubble.style.left = x + 'px';
+    speechBubble.style.top = y + 'px';
+    speechBubble.style.transform = 'translateX(-50%)';
+    speechBubble.style.maxWidth = '250px';
+    speechBubble.style.whiteSpace = 'normal';
+    speechBubble.style.visibility = 'hidden';
+    speechBubble.style.opacity = '0';
+    // 让DOM渲染后再判断实际尺寸
+    setTimeout(() => {
+        const rect = speechBubble.getBoundingClientRect();
+        let newY = y;
+        let triangleBelow = false; // true=三角在上，false=三角在下
+        // 如果气泡顶部超出窗口，则下移到头部下方
+        if (rect.top < 0) {
+            if (vrm && vrm.scene) {
+                // 头部下方
+                const headPosition = getHeadPosition();
+                const vector = new THREE.Vector3();
+                vector.copy(headPosition);
+                vector.project(camera);
+                newY = (-vector.y * 0.5 + 0.5) * window.innerHeight + 10; // 更贴近下方
+                triangleBelow = true;
+            } else {
+                newY = 20;
+                triangleBelow = true;
+            }
+        }
+        // 如果气泡底部超出窗口，则上移
+        if (rect.bottom > window.innerHeight) {
+            newY = window.innerHeight - rect.height - 10;
+            triangleBelow = false;
+        }
+        // 如果气泡左侧超出
+        let newX = x;
+        if (rect.left < 0) {
+            newX = rect.width / 2 + 10;
+        }
+        // 如果气泡右侧超出
+        if (rect.right > window.innerWidth) {
+            newX = window.innerWidth - rect.width / 2 - 10;
+        }
+        speechBubble.style.left = newX + 'px';
+        speechBubble.style.top = newY + 'px';
+        speechBubble.style.visibility = 'visible';
+        speechBubble.style.opacity = '1';
+        // 三角方向调整
+        if (triangleBelow) {
+            speechBubble.classList.add('bubble-below');
+        } else {
+            speechBubble.classList.remove('bubble-below');
+        }
+    }, 10);
     // 显示气泡
     speechBubble.classList.add('visible');
-    
     // 3秒后自动隐藏
     bubbleTimeout = setTimeout(() => {
         speechBubble.classList.remove('visible');

@@ -57,6 +57,8 @@ canvas {
     border: 1px solid rgba(255, 255, 255, 0.2);
     word-wrap: break-word;
     line-height: 1.4;
+    /* 允许超出窗口 */
+    overflow: visible;
 }
 
 #speech-bubble.visible {
@@ -69,13 +71,24 @@ canvas {
 #speech-bubble::after {
     content: '';
     position: absolute;
-    bottom: -8px;
     left: 50%;
-    transform: translateX(-50%);
-    border-width: 8px 8px 0;
     border-style: solid;
-    border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    transition: all 0.2s;
+    /* 默认朝下 */
+    bottom: -8px;
+    top: auto;
+    border-width: 8px 8px 0 8px;
+    border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent;
+    transform: translateX(-50%);
+}
+
+#speech-bubble.bubble-below::after {
+    top: -8px !important;
+    bottom: auto !important;
+    border-width: 8px 8px 0 8px !important;
+    border-color: #fff transparent transparent transparent !important;
+    transform: translateX(-50%) rotate(180deg) !important;
 }
 
 /* 固定图标样式 */
