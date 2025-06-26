@@ -19,6 +19,7 @@
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.1",
     "electron-store": "^10.1.0",
-    "three": "^0.177.0"
+    "three": "^0.177.0",
+    "tween.js": "^16.6.0"
   }
 }

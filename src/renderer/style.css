@@ -11,7 +11,7 @@ html, body {
     width: 100vw;
     height: 100vh;
     position: relative;
-    background: rgba(255,255,255,0.08);
+    background: transparent;
     overflow: hidden;
     transition: background 0.3s;
 }
@@ -34,43 +34,48 @@ canvas {
     z-index: 0;
     /* 防止画布也响应拖动事件 */
     -webkit-app-region: no-drag;
+    cursor: pointer; /* 添加指针样式，提示可点击 */
 }
 
 #speech-bubble {
     position: absolute;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: white;
-    padding: 10px 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    font-family: sans-serif;
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 12px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Arial', sans-serif;
     font-size: 14px;
     color: #333;
-    max-width: 200px;
+    max-width: 250px;
     text-align: center;
     visibility: hidden; /* 默认隐藏 */
     opacity: 0;
-    transition: opacity 0.3s, visibility 0.3s;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
     -webkit-app-region: no-drag; /* 气泡不可拖动 */
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    word-wrap: break-word;
+    line-height: 1.4;
 }
 
 #speech-bubble.visible {
     visibility: visible;
     opacity: 1;
+    transform: translateY(-5px);
 }
 
 /* 气泡的小三角 */
 #speech-bubble::after {
     content: '';
     position: absolute;
-    bottom: -10px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    border-width: 10px 10px 0;
+    border-width: 8px 8px 0;
     border-style: solid;
-    border-color: white transparent transparent transparent;
+    border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
 }
 
 /* 固定图标样式 */
@@ -193,8 +198,9 @@ canvas {
     -webkit-app-region: no-drag;
     opacity: 0.25;
 }
-#drag-button svg, #pin-button svg {
+#drag-button svg, #pin-button svg, #topmost-button svg {
     stroke: currentColor;
+    fill: currentColor;
 }
 
 #menu-bar {
@@ -203,15 +209,29 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 16px;
-    padding: 0 24px;
+    gap: 6px;
+    padding: 0 16px;
     box-sizing: border-box;
     position: relative;
     z-index: 1001;
     background: transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
 }
 
-#drag-button, #pin-button {
+#character-container:hover #menu-bar,
+#menu-bar:hover,
+#menu-bar:focus-within,
+#menu-bar:active,
+#drag-button:hover,
+#pin-button:hover,
+#topmost-button:hover {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#drag-button, #pin-button, #topmost-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -219,10 +239,29 @@ canvas {
     height: 32px;
     margin: 0;
     padding: 0;
+    background: none;
+    border: none;
+    outline: none;
+    color: #8a8a8a;
+    opacity: 1;
+    transition: color 0.3s, opacity 0.3s, filter 0.3s;
+    box-shadow: none;
+    cursor: pointer;
+    filter: grayscale(1);
 }
-#drag-button svg, #pin-button svg {
+#drag-button.active,
+#pin-button.locked,
+#topmost-button.active {
+    color: #d81e06;
+    opacity: 1;
+    filter: grayscale(0);
+}
+#drag-button .icon-svg, #pin-button .icon-svg, #topmost-button .icon-svg {
     width: 22px;
     height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #viewer {
@@ -243,4 +282,40 @@ canvas {
     left: 0;
     z-index: 0;
     -webkit-app-region: no-drag;
+}
+
+/* 当模型被固定时，禁用点击交互 */
+#character-container.fixed canvas {
+    cursor: default;
+}
+
+#topmost-button {
+    background: none;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    opacity: 0.25;
+    color: rgba(80,80,80,0.25);
+    transition: color 0.3s, opacity 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: none;
+}
+#topmost-button .icon-svg {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#topmost-button:hover,
+#character-container:hover #topmost-button {
+    opacity: 0.85;
+    color: #4a90e2;
+}
+#topmost-button.active {
+    color: #4a90e2;
+    opacity: 1;
 } 

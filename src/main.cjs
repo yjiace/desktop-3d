@@ -66,7 +66,7 @@ function createWindow() {
     height: safeBounds.height,
     transparent: true,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // a preload script is good practice
@@ -113,7 +113,7 @@ function createSettingsWindow() {
     resizable: true,
     minimizable: false,
     maximizable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     frame: false,
     transparent: false,
     webPreferences: {
@@ -280,6 +280,13 @@ ipcMain.on('reset-config', async (event) => {
   store.set('config', def);
   // 通知主窗口刷新
   if (mainWindow) mainWindow.webContents.send('config-updated', def);
+});
+
+// 监听渲染进程置顶切换请求
+ipcMain.on('toggle-always-on-top', (event, isTop) => {
+  if (mainWindow) {
+    mainWindow.setAlwaysOnTop(!!isTop);
+  }
 });
 
 app.on('ready', async () => {
