@@ -199,6 +199,63 @@
         .btn-danger:hover {
             background: #f0e0e0 !important;
         }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            vertical-align: middle;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .switch input:checked + .slider {
+            background-color: #4a90e2;
+        }
+        .switch input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .setting-card {
+            background: #fafdff;
+            border: 1.5px solid #e3e7f0;
+            border-radius: 8px;
+            padding: 18px 20px 10px 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(74,144,226,0.04);
+        }
+        .setting-card .setting-title {
+            font-size: 15px;
+            color: #4a90e2;
+            font-weight: 600;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e3e7f0;
+            padding-bottom: 6px;
+        }
+        .setting-card .form-group:last-child {
+            margin-bottom: 0;
+        }
     </style>
 </head>
 <body>
@@ -360,10 +417,26 @@
                         <button id="add-custom-model-btn">添加自定义模型</button>
                     </div>
                 </div>
-                <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
-                <div class="builtin-parts">
-                    <h4>部位提示（仅可编辑内容）</h4>
-                    <ul class="part-list" id="builtin-part-list"></ul>
+                <div class="setting-card">
+                    <div class="setting-title">交互与提示</div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <span>允许点击模型弹出气泡提示</span>
+                            <label class="switch">
+                                <input type="checkbox" id="allow-bubble-checkbox" ${config.model.allowBubble !== false ? 'checked' : ''} />
+                                <span class="slider"></span>
+                            </label>
+                        </label>
+                    </div>
+                    <div class="builtin-parts">
+                        <h4>内置部位提示</h4>
+                        <ul class="part-list" id="builtin-part-list"></ul>
+                    </div>
+                    <div class="custom-parts">
+                        <h4>自定义部位</h4>
+                        <ul class="part-list" id="custom-part-list"></ul>
+                        <button class="add-part-btn" id="add-custom-part-btn" style="margin-top:8px;">添加自定义部位</button>
+                    </div>
                 </div>
                 <div style="display:flex;justify-content: flex-end;gap:12px;margin-top:32px;">
                     <button class="add-part-btn btn-danger" id="reset-btn">恢复所有默认</button>
@@ -373,27 +446,24 @@
 
             // 渲染部位提示
             const builtinPartList = container.querySelector('#builtin-part-list');
-            // 读取配置中的自定义内容
+            const customPartList = container.querySelector('#custom-part-list');
             let userTips = (config.model && config.model.partTips) ? config.model.partTips : [];
-            // 以内置顺序渲染
+            // 渲染内置部位
             builtinPartTips.forEach((part, index) => {
-                // 查找用户自定义内容
                 let userTip = userTips.find(t => t.name === part.name);
                 let tipValue = userTip ? userTip.tip : part.tip;
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <input type="text" value="${part.name}" class="part-name" readonly style="background:#f5f5f5;" />
+                    <span style="width:80px;display:inline-block;">${part.tip}</span>
                     <input type="text" value="${tipValue}" class="part-tip" placeholder="对应提示语" data-builtin-index="${index}" />
                 `;
                 builtinPartList.appendChild(li);
             });
-
-            // 只允许编辑内容
+            // 只允许编辑提示内容
             container.querySelectorAll('[data-builtin-index]').forEach(input => {
                 input.oninput = (e) => {
                     const index = parseInt(e.target.dataset.builtinIndex, 10);
                     const part = builtinPartTips[index];
-                    // 更新到配置
                     if (!config.model.partTips) config.model.partTips = [];
                     let userTip = config.model.partTips.find(t => t.name === part.name);
                     if (!userTip) {
@@ -404,6 +474,94 @@
                     saveConfig();
                 };
             });
+            // 渲染自定义部位
+            function renderCustomParts() {
+                customPartList.innerHTML = '';
+                let customTips = userTips.filter(t => !builtinPartTips.find(b => b.name === t.name));
+                // 统计所有事件名
+                const allNames = [...builtinPartTips.map(b=>b.name), ...customTips.map(t=>t.name)];
+                let nameCount = {};
+                allNames.forEach(n => { if(n) nameCount[n] = (nameCount[n]||0)+1; });
+                let hasConflict = false;
+                customTips.forEach((part, idx) => {
+                    const li = document.createElement('li');
+                    // 检查是否冲突
+                    let isConflict = part.name && nameCount[part.name] > 1;
+                    if(isConflict) hasConflict = true;
+                    li.innerHTML = `
+                        <input type="text" value="${part.name}" class="custom-part-name" placeholder="事件名(英文)" style="width:90px;margin-right:8px;${isConflict?'border:1.5px solid #e00;background:#fff0f0;':''}" />
+                        <input type="text" value="${part.cn || ''}" class="custom-part-cn" placeholder="部位名(中文)" style="width:90px;margin-right:8px;" />
+                        <input type="text" value="${part.tip || ''}" class="custom-part-tip" placeholder="对应提示语" style="flex:1;margin-right:8px;" />
+                        <button class="remove-part-btn" title="删除">×</button>
+                    `;
+                    // 删除事件
+                    li.querySelector('.remove-part-btn').onclick = () => {
+                        // 直接用原始数组索引删除，避免因事件名冲突无法删除
+                        const allCustom = userTips.filter(t => !builtinPartTips.find(b => b.name === t.name));
+                        const realIdx = userTips.indexOf(allCustom[idx]);
+                        if(realIdx !== -1) {
+                            config.model.partTips.splice(realIdx, 1);
+                            saveConfig();
+                            renderCustomParts();
+                        }
+                    };
+                    // 编辑事件名
+                    li.querySelector('.custom-part-name').oninput = (e) => {
+                        const newName = e.target.value.trim();
+                        // 检查是否与内置或其他自定义重复
+                        let conflict = false;
+                        if(newName) {
+                            let count = 0;
+                            allNames.forEach(n => { if(n===newName) count++; });
+                            if(count > 1) conflict = true;
+                        }
+                        if(conflict) {
+                            e.target.style.border = '1.5px solid #e00';
+                            e.target.style.background = '#fff0f0';
+                            e.target.title = '事件名已存在，不能重复';
+                            // 不保存、不重渲染
+                        } else {
+                            e.target.style.border = '';
+                            e.target.style.background = '';
+                            e.target.title = '';
+                            part.name = newName;
+                            saveConfig();
+                            // 不重渲染，避免失焦
+                        }
+                    };
+                    // 编辑中文名
+                    li.querySelector('.custom-part-cn').oninput = (e) => {
+                        part.cn = e.target.value;
+                        saveConfig();
+                    };
+                    // 编辑提示
+                    li.querySelector('.custom-part-tip').oninput = (e) => {
+                        part.tip = e.target.value;
+                        saveConfig();
+                    };
+                    customPartList.appendChild(li);
+                });
+                // 添加按钮禁用逻辑
+                const addBtn = container.querySelector('#add-custom-part-btn');
+                if(hasConflict) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = 0.5;
+                    addBtn.title = '有重复事件名，无法添加';
+                } else {
+                    addBtn.disabled = false;
+                    addBtn.style.opacity = 1;
+                    addBtn.title = '';
+                }
+            }
+            renderCustomParts();
+            // 添加自定义部位
+            container.querySelector('#add-custom-part-btn').onclick = () => {
+                if (!config.model.partTips) config.model.partTips = [];
+                config.model.partTips.push({ name: '', cn: '', tip: '' });
+                saveConfig();
+                renderCustomParts();
+            };
+
             // 切换模型时临时生效
             container.querySelector('#model-select').onchange = (e) => {
                 config.modelPath = e.target.value;
@@ -411,6 +569,35 @@
             };
             container.querySelector('#reset-btn').onclick = resetConfig;
             container.querySelector('#save-model-section-btn').onclick = async () => {
+                // 校验自定义事件名冲突
+                let userTips = (config.model && config.model.partTips) ? config.model.partTips : [];
+                let customTips = userTips.filter(t => !builtinPartTips.find(b => b.name === t.name));
+                let nameMap = {};
+                let hasConflict = false;
+                customTips.forEach(part => {
+                    if (!part.name) return;
+                    if (!nameMap[part.name]) nameMap[part.name] = [];
+                    nameMap[part.name].push(part);
+                });
+                // 标记冲突输入框
+                const customPartList = container.querySelector('#custom-part-list');
+                customPartList.querySelectorAll('.custom-part-name').forEach(input => {
+                    const val = input.value.trim();
+                    if (val && nameMap[val] && nameMap[val].length > 1) {
+                        input.style.border = '1.5px solid #e00';
+                        input.style.background = '#fff0f0';
+                        input.title = '事件名已存在，不能重复';
+                        hasConflict = true;
+                    } else {
+                        input.style.border = '';
+                        input.style.background = '';
+                        input.title = '';
+                    }
+                });
+                if (hasConflict) {
+                    alert('有重复事件名，请修改后再保存！');
+                    return;
+                }
                 // 保存当前模型设置到数据库
                 await window.electronAPI.setConfig(config);
                 // 更新原始配置
@@ -419,6 +606,12 @@
                 // 主动同步到主窗口，确保3D状态实时变更
                 window.electronAPI.setConfig(config);
                 renderCurrentSection(); // 刷新UI控件
+            };
+
+            // 新增：交互开关事件
+            container.querySelector('#allow-bubble-checkbox').onchange = (e) => {
+                config.model.allowBubble = e.target.checked;
+                saveConfig();
             };
         }
 

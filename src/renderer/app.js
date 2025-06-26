@@ -262,10 +262,17 @@ function setupClickEvents() {
 }
 
 // 修改点击事件处理函数
-function onMouseClick(event) {
+async function onMouseClick(event) {
     // 只响应左键
     if (event.button !== 0) return;
     console.log('点击事件触发:', event.type, '目标:', event.target);
+    
+    // 新增：判断是否允许弹出气泡
+    const config = await getConfig();
+    if (!config?.model?.allowBubble) {
+        console.log('未开启气泡弹出，忽略点击');
+        return;
+    }
     
     if (isFixed) {
         console.log('模型已固定，忽略点击');
