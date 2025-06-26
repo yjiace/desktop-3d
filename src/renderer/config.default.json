@@ -4,5 +4,12 @@
   "appearance": {
     "scale": 1.0,
     "background": "transparent"
+  },
+  "modelState": {
+    "scale": 1.0,
+    "cameraPosition": [0, 0, 3],
+    "cameraTarget": [0, 0, 0],
+    "cameraFov": 30,
+    "isFixed": false
   }
 } 

@@ -203,6 +203,27 @@ ipcMain.on('set-config', async (event, config) => {
   if (mainWindow) mainWindow.webContents.send('config-updated', config);
 });
 
+// 新增：保存3D模型状态
+ipcMain.on('save-model-state', async (event, modelState) => {
+  if (!store) {
+    Store = (await import('electron-store')).default;
+    store = new Store();
+  }
+  const currentConfig = store.get('config') || getDefaultConfig();
+  currentConfig.modelState = modelState;
+  store.set('config', currentConfig);
+});
+
+// 新增：获取3D模型状态
+ipcMain.handle('get-model-state', async () => {
+  if (!store) {
+    Store = (await import('electron-store')).default;
+    store = new Store();
+  }
+  const config = store.get('config');
+  return config?.modelState || getDefaultConfig().modelState;
+});
+
 ipcMain.on('reset-config', async (event) => {
   const def = getDefaultConfig();
   if (!store) {

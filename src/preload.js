@@ -15,4 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onConfigUpdated: (callback) => ipcRenderer.on('config-updated', (event, ...args) => callback(...args)),
   copyToAssets: (sourcePath) => ipcRenderer.invoke('copy-to-assets', sourcePath),
   deleteFromAssets: (rendererRelativePath) => ipcRenderer.invoke('delete-from-assets', rendererRelativePath),
+  saveModelState: (modelState) => ipcRenderer.send('save-model-state', modelState),
+  getModelState: () => ipcRenderer.invoke('get-model-state'),
 }); 
