@@ -15,9 +15,47 @@
         .settings-root {
             width: 100vw; height: 100vh;
             display: flex;
+            flex-direction: column;
             background: #fff;
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        .settings-header {
+            height: 60px;
+            background: #f6f7fb;
+            border-bottom: 1px solid #ececec;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            -webkit-app-region: drag;
+        }
+        .settings-header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #222;
+        }
+        .settings-header .close-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(180,180,180,0.08);
+            border: none;
+            border-radius: 50%;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            -webkit-app-region: no-drag;
+        }
+        .settings-header .close-btn:hover {
+            background: rgba(180,180,180,0.18);
+            color: #222;
+        }
+        .settings-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
         }
         .settings-sidebar {
             width: 160px;
@@ -26,9 +64,7 @@
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            padding-top: 48px;
-            position: relative;
-            -webkit-app-region: drag;
+            padding-top: 16px;
         }
         .settings-sidebar .menu-item {
             width: 100%;
@@ -49,7 +85,7 @@
         }
         .settings-content {
             flex: 1;
-            padding: 48px 32px 32px 32px;
+            padding: 32px;
             position: relative;
             overflow-y: auto;
         }
@@ -58,57 +94,129 @@
             font-weight: 600;
             margin-bottom: 24px;
         }
-        .close-btn {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 36px;
-            height: 36px;
-            background: rgba(180,180,180,0.08);
-            border: none;
-            border-radius: 50%;
-            color: #888;
-            font-size: 22px;
-            cursor: pointer;
-            z-index: 10;
-            transition: background 0.2s, color 0.2s;
-            -webkit-app-region: no-drag;
-        }
-        .close-btn:hover {
-            background: rgba(180,180,180,0.18);
-            color: #222;
-        }
-        /* 拖拽区域 */
-        .settings-drag-bar {
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 40px;
-            -webkit-app-region: drag;
-            z-index: 2;
-        }
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; font-size: 15px; color: #444; }
-        select, input[type="text"], input[type="file"], textarea { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 15px; background: #fafbfc; }
+        select, input[type="text"], input[type="file"], textarea { 
+            width: 100%; 
+            padding: 7px 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 15px; 
+            background: #fafbfc; 
+        }
+        select:focus, input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+        .model-selector {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .model-selector select {
+            flex: 1;
+        }
+        .model-selector button {
+            padding: 7px 12px;
+            border: none;
+            border-radius: 5px;
+            background: #4a90e2;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .model-selector button:hover {
+            background: #357abd;
+        }
         .part-list { margin: 0; padding: 0; list-style: none; }
-        .part-list li { display: flex; align-items: center; margin-bottom: 8px; }
+        .part-list li { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 8px; 
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
         .part-list input[type="text"] { flex: 1; margin-right: 8px; }
-        .add-part-btn { margin-top: 8px; padding: 5px 12px; border: none; border-radius: 5px; background: #e3e7f0; color: #333; cursor: pointer; font-size: 14px; }
+        .part-list .part-name { width: 120px; }
+        .part-list .part-tip { flex: 1; }
+        .add-part-btn { 
+            margin-top: 8px; 
+            padding: 8px 16px; 
+            border: none; 
+            border-radius: 5px; 
+            background: #e3e7f0; 
+            color: #333; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: background 0.2s;
+        }
         .add-part-btn:hover { background: #d0d6e1; }
-        .remove-part-btn { background: none; border: none; color: #c00; font-size: 18px; cursor: pointer; margin-left: 4px; }
+        .remove-part-btn { 
+            background: none; 
+            border: none; 
+            color: #c00; 
+            font-size: 18px; 
+            cursor: pointer; 
+            margin-left: 4px;
+            padding: 4px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        .remove-part-btn:hover {
+            background: rgba(204, 0, 0, 0.1);
+        }
+        .builtin-parts {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f0f7ff;
+            border-radius: 6px;
+            border-left: 4px solid #4a90e2;
+        }
+        .builtin-parts h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #4a90e2;
+        }
+        .builtin-parts .part-list li {
+            background: white;
+            margin-bottom: 4px;
+        }
+        .custom-parts {
+            margin-top: 16px;
+        }
+        .custom-parts h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .btn-danger {
+            background: #f5eaea !important;
+            color: #c00 !important;
+        }
+        .btn-danger:hover {
+            background: #f0e0e0 !important;
+        }
     </style>
 </head>
 <body>
     <div class="settings-root">
-        <div class="settings-sidebar">
-            <div class="settings-drag-bar"></div>
-            <button class="menu-item active" data-section="model">3D模型</button>
-            <button class="menu-item" data-section="scene">3D场景</button>
+        <div class="settings-header">
+            <h1>设置</h1>
+            <button class="close-btn" id="close-settings">×</button>
         </div>
-        <div class="settings-content" id="settings-content">
-            <div class="settings-title">3D模型设置</div>
-            <div id="settings-section-content"></div>
+        <div class="settings-body">
+            <div class="settings-sidebar">
+                <button class="menu-item active" data-section="model">3D模型</button>
+                <button class="menu-item" data-section="scene">3D场景</button>
+            </div>
+            <div class="settings-content" id="settings-content">
+                <div class="settings-title">3D模型设置</div>
+                <div id="settings-section-content"></div>
+            </div>
         </div>
-        <button class="close-btn" id="close-settings">×</button>
     </div>
     <script type="module">
         // --- 工具函数 ---
@@ -130,10 +238,30 @@
         // --- 全局状态 ---
         let config = {};
         let currentSection = 'model';
+        let availableModels = [
+            { name: '默认模型', path: '../../assets/default.vrm' },
+            { name: 'FoxGirl', path: '../../assets/FoxGirl.vrm' },
+            { name: '冨美江', path: '../../assets/冨美江.vrm' }
+        ];
+        
         const sectionMap = {
             model: { title: '3D模型设置', render: renderModelSection },
             scene: { title: '3D场景设置', render: renderSceneSection },
         };
+
+        // 内置部位提示
+        const builtinPartTips = [
+            { name: 'head', tip: '头部' },
+            { name: 'face', tip: '面部' },
+            { name: 'hair', tip: '头发' },
+            { name: 'eyes', tip: '眼睛' },
+            { name: 'mouth', tip: '嘴巴' },
+            { name: 'body', tip: '身体' },
+            { name: 'arms', tip: '手臂' },
+            { name: 'legs', tip: '腿部' },
+            { name: 'hands', tip: '手部' },
+            { name: 'feet', tip: '脚部' }
+        ];
 
         // --- 初始化和配置管理 ---
         const saveConfig = debounce(() => {
@@ -146,6 +274,18 @@
             config.model = config.model || {};
             config.scene = config.scene || {};
             config.model.partTips = config.model.partTips || [];
+            config.model.customModels = config.model.customModels || [];
+
+            // 加载自定义模型到可用模型列表
+            if (config.model.customModels) {
+                availableModels = [
+                    ...availableModels,
+                    ...config.model.customModels.map(model => ({
+                        name: model.name,
+                        path: model.path
+                    }))
+                ];
+            }
 
             renderCurrentSection();
         }
@@ -180,100 +320,144 @@
 
         // --- 渲染函数：模型设置 ---
         function renderModelSection(container) {
-            const isCustomModel = config.modelPath && !config.modelPath.includes('default.vrm');
+            const currentModel = availableModels.find(m => m.path === config.modelPath) || 
+                               { name: '自定义模型', path: config.modelPath };
             
             container.innerHTML = `
                 <div class="form-group">
-                    <label>当前模型</label>
-                    <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">${config.modelPath || '未设置'}</p>
+                    <label>选择模型</label>
+                    <div class="model-selector">
+                        <select id="model-select">
+                            ${availableModels.map(model => 
+                                `<option value="${model.path}" ${model.path === config.modelPath ? 'selected' : ''}>
+                                    ${model.name}
+                                </option>`
+                            ).join('')}
+                            ${!availableModels.find(m => m.path === config.modelPath) && config.modelPath ? 
+                                `<option value="${config.modelPath}" selected>自定义模型</option>` : ''
+                            }
+                        </select>
+                        <button id="add-custom-model-btn">添加自定义模型</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>选择新模型 (.vrm)</label>
-                    <input type="file" id="model-upload" accept=".vrm" style="display: block;"/>
-                    <button id="set-default-model-btn" class="add-part-btn" style="margin-top: 8px;">使用内置模型</button>
-                    ${isCustomModel ? '<button id="delete-custom-model-btn" class="add-part-btn" style="margin-top: 8px; background:#f5eaea;color:#c00;">删除当前自定义模型</button>' : ''}
-                </div>
+
                 <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
-                <div class="form-group">
-                    <label>自定义部位提示</label>
-                    <ul class="part-list" id="part-list-container"></ul>
-                    <button class="add-part-btn" id="add-part-btn">添加部位</button>
+                
+                <div class="builtin-parts">
+                    <h4>内置部位提示（仅可编辑内容）</h4>
+                    <ul class="part-list" id="builtin-part-list"></ul>
                 </div>
+                
+                <div class="custom-parts">
+                    <h4>自定义部位提示</h4>
+                    <ul class="part-list" id="custom-part-list"></ul>
+                    <button class="add-part-btn" id="add-custom-part-btn">添加自定义部位</button>
+                </div>
+                
                 <div style="text-align:right;margin-top:32px;">
-                    <button class="add-part-btn" id="reset-btn" style="background:#f5eaea;color:#c00;">恢复所有默认</button>
+                    <button class="add-part-btn btn-danger" id="reset-btn">恢复所有默认</button>
                 </div>
             `;
 
-            const partListContainer = container.querySelector('#part-list-container');
+            // 渲染内置部位提示
+            const builtinPartList = container.querySelector('#builtin-part-list');
+            builtinPartTips.forEach((part, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <input type="text" value="${part.name}" class="part-name" readonly style="background:#f5f5f5;" />
+                    <input type="text" value="${part.tip}" class="part-tip" placeholder="对应提示语" data-builtin-index="${index}" />
+                `;
+                builtinPartList.appendChild(li);
+            });
+
+            // 渲染自定义部位提示
+            const customPartList = container.querySelector('#custom-part-list');
             (config.model.partTips || []).forEach((part, index) => {
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <input type="text" value="${part.name || ''}" class="part-name" placeholder="部位名(如:head)" style="width:80px;" data-index="${index}" />
-                    <input type="text" value="${part.tip || ''}" class="part-tip" placeholder="对应提示语" data-index="${index}" />
-                    <button class="remove-part-btn" title="删除" data-index="${index}">×</button>
+                    <input type="text" value="${part.name || ''}" class="part-name" placeholder="部位名(如:head)" data-custom-index="${index}" />
+                    <input type="text" value="${part.tip || ''}" class="part-tip" placeholder="对应提示语" data-custom-index="${index}" />
+                    <button class="remove-part-btn" title="删除" data-custom-index="${index}">×</button>
                 `;
-                partListContainer.appendChild(li);
+                customPartList.appendChild(li);
             });
 
             // --- 事件绑定 ---
-            container.querySelector('#model-upload').onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                try {
-                    const relativePath = await window.electronAPI.copyToAssets(file.path);
-                    if (isCustomModel) {
-                         await window.electronAPI.deleteFromAssets(config.modelPath);
-                    }
-                    config.modelPath = relativePath;
-                    saveConfig();
-                    renderCurrentSection();
-                } catch (error) {
-                    console.error('上传失败', error);
-                    alert('模型上传失败，请查看控制台日志。');
-                }
-            };
-            
-            container.querySelector('#set-default-model-btn').onclick = async () => {
-                 if (isCustomModel) {
-                    await window.electronAPI.deleteFromAssets(config.modelPath);
-                }
-                config.modelPath = '../../assets/default.vrm';
+            container.querySelector('#model-select').onchange = (e) => {
+                config.modelPath = e.target.value;
                 saveConfig();
-                renderCurrentSection();
             };
 
-            if(isCustomModel) {
-                container.querySelector('#delete-custom-model-btn').onclick = async () => {
-                    if (confirm('确定要删除这个自定义模型文件吗？此操作不可恢复。')) {
-                        await window.electronAPI.deleteFromAssets(config.modelPath);
-                        config.modelPath = '../../assets/default.vrm';
+            container.querySelector('#add-custom-model-btn').onclick = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.vrm';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    try {
+                        const relativePath = await window.electronAPI.copyToAssets(file.path);
+                        const modelName = file.name.replace('.vrm', '');
+                        
+                        // 添加到自定义模型列表
+                        if (!config.model.customModels) config.model.customModels = [];
+                        config.model.customModels.push({
+                            name: modelName,
+                            path: relativePath
+                        });
+                        
+                        // 更新可用模型列表
+                        availableModels.push({
+                            name: modelName,
+                            path: relativePath
+                        });
+                        
+                        // 自动选择新添加的模型
+                        config.modelPath = relativePath;
+                        
                         saveConfig();
                         renderCurrentSection();
+                    } catch (error) {
+                        console.error('上传失败', error);
+                        alert('模型上传失败，请查看控制台日志。');
                     }
                 };
-            }
+                input.click();
+            };
 
-            container.querySelector('#add-part-btn').onclick = () => {
+            // 内置部位提示编辑
+            container.querySelectorAll('[data-builtin-index]').forEach(input => {
+                input.oninput = (e) => {
+                    const index = parseInt(e.target.dataset.builtinIndex, 10);
+                    builtinPartTips[index].tip = e.target.value;
+                    // 这里可以保存到配置中，如果需要的话
+                };
+            });
+
+            // 自定义部位提示编辑
+            container.querySelectorAll('[data-custom-index]').forEach(input => {
+                input.oninput = (e) => {
+                    const index = parseInt(e.target.dataset.customIndex, 10);
+                    const key = e.target.classList.contains('part-name') ? 'name' : 'tip';
+                    config.model.partTips[index][key] = e.target.value;
+                    saveConfig();
+                };
+            });
+
+            container.querySelector('#add-custom-part-btn').onclick = () => {
                 if (!config.model.partTips) config.model.partTips = [];
                 config.model.partTips.push({ name: '', tip: '' });
+                saveConfig();
                 renderCurrentSection();
             };
 
             container.querySelectorAll('.remove-part-btn').forEach(btn => {
                 btn.onclick = (e) => {
-                    const index = parseInt(e.target.dataset.index, 10);
+                    const index = parseInt(e.target.dataset.customIndex, 10);
                     config.model.partTips.splice(index, 1);
                     saveConfig();
                     renderCurrentSection();
-                };
-            });
-            
-            container.querySelectorAll('.part-name, .part-tip').forEach(input => {
-                input.oninput = (e) => {
-                    const index = parseInt(e.target.dataset.index, 10);
-                    const key = e.target.classList.contains('part-name') ? 'name' : 'tip';
-                    config.model.partTips[index][key] = e.target.value;
-                    saveConfig();
                 };
             });
             
@@ -288,13 +472,8 @@
                     <label>当前舞台模型</label>
                     <p style="font-size:14px; word-break:break-all; background: #f0f0f0; padding: 8px; border-radius: 4px;">${config.scene?.stagePath || '无舞台 (透明背景)'}</p>
                 </div>
-                <div class="form-group">
-                    <label>上传新舞台 (.gltf, .glb)</label>
-                    <input type="file" id="stage-upload" accept=".gltf,.glb" style="display: block;"/>
-                    <button id="remove-custom-stage-btn" class="add-part-btn" style="margin-top: 8px; ${!isCustomStage ? 'display:none;' : ''}"">移除自定义舞台</button>
-                </div>
                  <div style="text-align:right;margin-top:32px;">
-                    <button class="add-part-btn" id="reset-btn" style="background:#f5eaea;color:#c00;">恢复所有默认</button>
+                    <button class="add-part-btn btn-danger" id="reset-btn">恢复所有默认</button>
                 </div>
             `;
 

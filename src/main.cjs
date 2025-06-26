@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 let Store;
@@ -22,6 +22,22 @@ function debounce(fn, delay) {
   };
 }
 
+// 确保窗口位置在屏幕边界内
+function ensureWindowInBounds(bounds) {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  
+  let { x, y, width, height } = bounds;
+  
+  // 确保窗口不会超出屏幕边界
+  if (x === undefined || x < 0) x = 50;
+  if (y === undefined || y < 0) y = 50;
+  if (x + width > screenWidth) x = screenWidth - width - 20;
+  if (y + height > screenHeight) y = screenHeight - height - 20;
+  
+  return { x, y, width, height };
+}
+
 const saveWindowBounds = () => {
   if (mainWindow) {
     const bounds = mainWindow.getBounds();
@@ -29,16 +45,25 @@ const saveWindowBounds = () => {
   }
 };
 
+const saveSettingsWindowBounds = () => {
+  if (settingsWindow) {
+    const bounds = settingsWindow.getBounds();
+    store.set('settingsWindowBounds', bounds);
+  }
+};
+
 const debouncedSaveWindowBounds = debounce(saveWindowBounds, 300);
+const debouncedSaveSettingsWindowBounds = debounce(saveSettingsWindowBounds, 300);
 
 function createWindow() {
   const windowBounds = store.get('windowBounds') || { width: 300, height: 400 };
+  const safeBounds = ensureWindowInBounds(windowBounds);
 
   mainWindow = new BrowserWindow({
-    x: windowBounds.x,
-    y: windowBounds.y,
-    width: windowBounds.width,
-    height: windowBounds.height,
+    x: safeBounds.x,
+    y: safeBounds.y,
+    width: safeBounds.width,
+    height: safeBounds.height,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -69,9 +94,22 @@ function createSettingsWindow() {
     settingsWindow.focus();
     return;
   }
-  settingsWindow = new BrowserWindow({
-    width: 600,
+  
+  // 获取保存的设置窗口位置和大小
+  const settingsWindowBounds = store.get('settingsWindowBounds') || { 
+    width: 600, 
     height: 420,
+    x: undefined,
+    y: undefined
+  };
+  
+  const safeBounds = ensureWindowInBounds(settingsWindowBounds);
+
+  settingsWindow = new BrowserWindow({
+    x: safeBounds.x,
+    y: safeBounds.y,
+    width: safeBounds.width,
+    height: safeBounds.height,
     resizable: true,
     minimizable: false,
     maximizable: false,
@@ -84,7 +122,16 @@ function createSettingsWindow() {
       contextIsolation: true,
     },
   });
+  
   settingsWindow.loadFile(path.join(__dirname, 'renderer/settings.html'));
+  
+  settingsWindow.on('close', () => {
+    saveSettingsWindowBounds(); // 关闭时强制保存一次
+  });
+
+  settingsWindow.on('move', debouncedSaveSettingsWindowBounds);
+  settingsWindow.on('resize', debouncedSaveSettingsWindowBounds);
+  
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
