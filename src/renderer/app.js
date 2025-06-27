@@ -4,14 +4,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 
 // --- 全局状态 ---
-let partResponses = {
-    head: "不要摸我的头！(>_<)",
-    neck: "脖子好痒呀...",
-    chest: "不...不可以色色！",
-    hips: "呀！",
-    leg: "腿...腿要断了！"
-};
-let defaultGreetings = ["你好！"];
 let isFixed = false;
 let currentAction = 'idle';
 let randomAnimationInterval = null;
@@ -26,6 +18,307 @@ let partTips = {
     belly: "腹部",
     hips: "臀部",
     isFixed: false
+};
+
+// --- 骨骼点击检测系统 ---
+let boneClickSystem = {
+    // 骨骼区域定义
+    boneRegions: {
+        head: {
+            bones: ['head'],
+            radius: 0.15,
+            color: 0xff0000,
+            visible: true,
+            offsetY: 0.1
+        },
+        arms: {
+            bones: ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm', 'leftHand', 'rightHand'],
+            radius: 0.12,
+            color: 0x00ff00,
+            visible: true,
+            offsetY: 0
+        },
+        legs: {
+            bones: ['leftUpperLeg', 'rightUpperLeg', 'leftLowerLeg', 'rightLowerLeg', 'leftFoot', 'rightFoot'],
+            radius: 0.08,
+            color: 0x0000ff,
+            visible: true,
+            offsetY: 0
+        },
+        chest: {
+            bones: ['chest', 'spine'],
+            radius: 0.12,
+            color: 0xffff00,
+            visible: true,
+            offsetY: 0
+        },
+        belly: {
+            bones: ['spine'],
+            radius: 0.10,
+            color: 0xff00ff,
+            visible: true,
+            offsetY: -0.1
+        },
+        hips: {
+            bones: ['hips'],
+            radius: 0.12,
+            color: 0x00ffff,
+            visible: true,
+            offsetY: 0
+        }
+    },
+    init(vrm) {
+        // 不再生成任何可视化标记
+        if (!vrm || !vrm.humanoid) {
+            return;
+        }
+    },
+    // 检测点击的部位 - 优化版本
+    detectClickedPart(worldPosition) {
+        if (!vrm || !vrm.humanoid) return null;
+        // 锁骨/脖子空间优先排除
+        const excludeBones = [
+            'neck',
+            'leftShoulder', 'rightShoulder',
+            'leftCollarbone', 'rightCollarbone'
+        ];
+        for (const boneName of excludeBones) {
+            const boneNode = vrm.humanoid.getRawBoneNode(boneName);
+            if (boneNode) {
+                const bonePosition = new THREE.Vector3();
+                boneNode.getWorldPosition(bonePosition);
+                const modelScale = vrm.scene.scale.x;
+                const detectionRadius = (this.boneRegions.arms?.radius || 0.12) * modelScale;
+                if (worldPosition.distanceTo(bonePosition) <= detectionRadius) {
+                    return null;
+                }
+            }
+        }
+
+        // -----------胸部自适应检测区域（仅胸部事件）-----------
+        // 常见左右胸骨骼名
+        const leftChestNames = ['leftUpperChest', 'leftBust', 'LeftBust', 'leftChest', 'LeftChest'];
+        const rightChestNames = ['rightUpperChest', 'rightBust', 'RightBust', 'rightChest', 'RightChest'];
+        let leftChestNode = null, rightChestNode = null;
+        for (const name of leftChestNames) {
+            leftChestNode = vrm.humanoid.getRawBoneNode(name);
+            if (leftChestNode) break;
+        }
+        for (const name of rightChestNames) {
+            rightChestNode = vrm.humanoid.getRawBoneNode(name);
+            if (rightChestNode) break;
+        }
+        const chestRadius = 0.12 * (vrm.scene.scale.x || 1); // 可调
+        const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 上移量，可调
+        if (leftChestNode && rightChestNode) {
+            // 两个圆形胸部检测区
+            const leftPos = new THREE.Vector3();
+            const rightPos = new THREE.Vector3();
+            leftChestNode.getWorldPosition(leftPos);
+            rightChestNode.getWorldPosition(rightPos);
+            leftPos.y += chestYOffset;
+            rightPos.y += chestYOffset;
+            if (worldPosition.distanceTo(leftPos) <= chestRadius || worldPosition.distanceTo(rightPos) <= chestRadius) {
+                return 'chest';
+            }
+        } else {
+            // 退化为chest中心的长方体区域
+            const chestNode = vrm.humanoid.getRawBoneNode('chest');
+            if (chestNode) {
+                const chestPos = new THREE.Vector3();
+                chestNode.getWorldPosition(chestPos);
+                chestPos.y += chestYOffset;
+                // 长方体参数
+                const width = 0.28 * (vrm.scene.scale.x || 1); // 左右宽度
+                const height = 0.18 * (vrm.scene.scale.x || 1); // 上下高度
+                const depth = 0.18 * (vrm.scene.scale.x || 1); // 前后厚度
+                if (
+                    Math.abs(worldPosition.x - chestPos.x) <= width / 2 &&
+                    Math.abs(worldPosition.y - chestPos.y) <= height / 2 &&
+                    Math.abs(worldPosition.z - chestPos.z) <= depth / 2
+                ) {
+                    return 'chest';
+                }
+            }
+        }
+        // -----------胸部自适应检测区域结束-----------
+
+        // -----------腹部自适应检测区域（仅腹部事件）-----------
+        // 仅当未命中胸部事件时再检测腹部
+        // 以chest骨骼为基准，腹部区域紧挨胸部下方
+        const chestNodeForBelly = vrm.humanoid.getRawBoneNode('chest');
+        if (chestNodeForBelly) {
+            const chestPos = new THREE.Vector3();
+            chestNodeForBelly.getWorldPosition(chestPos);
+            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
+            chestPos.y += chestYOffset; // 胸部上移量
+            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
+            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
+            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
+            // 腹部参数
+            const bellyHeight = 0.06 * (vrm.scene.scale.x || 1); // 腹部高度
+            const bellyWidth = chestWidth;
+            const bellyDepth = chestDepth;
+            // 腹部中心y = 胸部中心y - (胸部高度/2) - (腹部高度/2)
+            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
+            if (
+                Math.abs(worldPosition.x - chestPos.x) <= bellyWidth / 2 &&
+                Math.abs(worldPosition.y - bellyCenterY) <= bellyHeight / 2 &&
+                Math.abs(worldPosition.z - chestPos.z) <= bellyDepth / 2
+            ) {
+                return 'belly';
+            }
+        }
+        // -----------腹部自适应检测区域结束-----------
+
+        // -----------臀部自适应检测区域（仅臀部事件）-----------
+        // 仅当未命中腹部事件时再检测臀部
+        // 以chest骨骼为基准，臀部区域紧挨腹部下方
+        if (chestNodeForBelly) {
+            const chestPos = new THREE.Vector3();
+            chestNodeForBelly.getWorldPosition(chestPos);
+            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
+            chestPos.y += chestYOffset; // 胸部上移量
+            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
+            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
+            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
+            // 腹部参数
+            const bellyHeight = 0.14 * (vrm.scene.scale.x || 1); // 腹部高度
+            // 臀部参数
+            const hipsHeight = 0.13 * (vrm.scene.scale.x || 1); // 臀部高度（下边界上移，区域更窄）
+            const hipsWidth = chestWidth;
+            const hipsDepth = chestDepth;
+            // 臀部中心y = 腹部中心y - (腹部高度/2) - (臀部高度/2)
+            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
+            const hipsCenterY = bellyCenterY - (bellyHeight / 2) - (hipsHeight / 2);
+            if (
+                Math.abs(worldPosition.x - chestPos.x) <= hipsWidth / 2 &&
+                Math.abs(worldPosition.y - hipsCenterY) <= hipsHeight / 2 &&
+                Math.abs(worldPosition.z - chestPos.z) <= hipsDepth / 2
+            ) {
+                return 'hips';
+            }
+        }
+        // -----------臀部自适应检测区域结束-----------
+
+        // -----------腿部自适应检测区域（仅腿部事件）-----------
+        // 仅当未命中臀部事件时再检测腿部
+        // 以chest骨骼为基准，腿部区域从臀部下边界到脚部
+        if (chestNodeForBelly) {
+            const chestPos = new THREE.Vector3();
+            chestNodeForBelly.getWorldPosition(chestPos);
+            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
+            chestPos.y += chestYOffset; // 胸部上移量
+            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
+            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
+            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
+            // 腹部参数
+            const bellyHeight = 0.14 * (vrm.scene.scale.x || 1); // 腹部高度
+            // 臀部参数
+            const hipsHeight = 0.13 * (vrm.scene.scale.x || 1); // 臀部高度
+            // 腿部参数
+            const legsWidth = chestWidth * 0.7; // 腿部略窄
+            const legsDepth = chestDepth;
+            // 计算腿部y范围
+            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
+            const hipsCenterY = bellyCenterY - (bellyHeight / 2) - (hipsHeight / 2);
+            const hipsBottomY = hipsCenterY - (hipsHeight / 2); // 臀部下边界
+            // 获取脚部最低点
+            let minFootY = null;
+            const footBones = ['leftFoot', 'rightFoot'];
+            footBones.forEach(boneName => {
+                const boneNode = vrm.humanoid.getRawBoneNode(boneName);
+                if (boneNode) {
+                    const pos = new THREE.Vector3();
+                    boneNode.getWorldPosition(pos);
+                    if (minFootY === null || pos.y < minFootY) minFootY = pos.y;
+                }
+            });
+            if (minFootY !== null) {
+                // 腿部中心y = (臀部下边界 + 脚底) / 2
+                const legsCenterY = (hipsBottomY + minFootY) / 2;
+                const legsHeight = Math.abs(hipsBottomY - minFootY);
+                if (
+                    Math.abs(worldPosition.x - chestPos.x) <= legsWidth / 2 &&
+                    Math.abs(worldPosition.y - legsCenterY) <= legsHeight / 2 &&
+                    Math.abs(worldPosition.z - chestPos.z) <= legsDepth / 2
+                ) {
+                    return 'legs';
+                }
+            }
+        }
+        // -----------腿部自适应检测区域结束-----------
+
+        let closestRegion = null;
+        let closestDistance = Infinity;
+        let closestBone = null;
+        
+        Object.entries(this.boneRegions).forEach(([regionName, region]) => {
+            // 跳过chest区域，已自适应处理
+            if(regionName === 'chest') return;
+            region.bones.forEach(boneName => {
+                const boneNode = vrm.humanoid.getRawBoneNode(boneName);
+                if (boneNode) {
+                    const bonePosition = new THREE.Vector3();
+                    boneNode.getWorldPosition(bonePosition);
+                    bonePosition.y += region.offsetY;
+                    const distance = worldPosition.distanceTo(bonePosition);
+                    const modelScale = vrm.scene.scale.x;
+                    const detectionRadius = region.radius * modelScale;
+                    if (distance <= detectionRadius && distance < closestDistance) {
+                        closestDistance = distance;
+                        closestRegion = regionName;
+                        closestBone = boneName;
+                    }
+                }
+            });
+        });
+        if (closestBone === 'spine') return null;
+        return closestRegion;
+    },
+    
+    // 切换区域可见性
+    toggleRegionVisibility(regionName) {
+        if (this.boneRegions[regionName]) {
+            this.boneRegions[regionName].visible = !this.boneRegions[regionName].visible;
+            if (vrm) {
+                this.clearVisualMarkers();
+                this.createVisualMarkers(vrm);
+            }
+        }
+    },
+    
+    // 获取所有可用骨骼名称
+    getAvailableBones() {
+        if (!vrm || !vrm.humanoid) return [];
+        
+        const availableBones = [];
+        vrm.humanoid.humanBones.forEach(humanBone => {
+            if (humanBone.node) {
+                availableBones.push(humanBone.bone);
+            }
+        });
+        return availableBones;
+    },
+    
+    // 显示所有区域标记
+    showAllRegions() {
+        Object.keys(this.boneRegions).forEach(region => {
+            this.boneRegions[region].visible = true;
+        });
+        if (vrm) {
+            this.clearVisualMarkers();
+            this.createVisualMarkers(vrm);
+        }
+    },
+    
+    // 隐藏所有区域标记
+    hideAllRegions() {
+        Object.keys(this.boneRegions).forEach(region => {
+            this.boneRegions[region].visible = false;
+        });
+        this.clearVisualMarkers();
+    }
 };
 
 // --- 状态保存相关 ---
@@ -77,9 +370,6 @@ function playAnimation(name) {
     } else if (animationClips.length > 0) {
         const fallbackAction = mixer.clipAction(animationClips[0]);
         fallbackAction.play();
-        console.warn('未找到动画：' + name + '，已回退到第一个动画：' + animationClips[0].name);
-    } else {
-        console.warn('当前模型没有任何动画，无法播放。');
     }
 }
 
@@ -278,8 +568,8 @@ function getHeadPosition() {
     }
     
     // 尝试获取VRM的头部骨骼
-    if (vrm.humanoid && vrm.humanoid.getBoneNode('head')) {
-        const headBone = vrm.humanoid.getBoneNode('head');
+    if (vrm.humanoid && vrm.humanoid.getRawBoneNode('head')) {
+        const headBone = vrm.humanoid.getRawBoneNode('head');
         const headPosition = new THREE.Vector3();
         headBone.getWorldPosition(headPosition);
         return headPosition;
@@ -313,17 +603,21 @@ function setupClickEvents() {
 async function onMouseClick(event) {
     // 只响应左键
     if (event.button !== 0) return;
-    // 新增：判断是否允许弹出气泡
+    
+    // 判断是否允许弹出气泡
     const config = await getConfig();
     if (!config?.model?.allowBubble) {
         return;
     }
+    
     if (isFixed) {
         return;
     }
+    
     if (!vrm || !vrm.scene) {
         return;
     }
+    
     // 阻止事件冒泡，避免与OrbitControls冲突
     event.preventDefault();
     event.stopPropagation();
@@ -343,14 +637,18 @@ async function onMouseClick(event) {
             objects.push(child);
         }
     });
+    
     const intersects = raycaster.intersectObjects(objects, true);
+    
     if (intersects.length > 0) {
         const intersect = intersects[0];
         const clickedObject = intersect.object;
         // 获取点击位置的世界坐标
         const worldPosition = intersect.point;
-        // 尝试识别点击的部位
-        const partName = identifyClickedPart(clickedObject, worldPosition);
+        
+        // 使用优化后的骨骼检测系统识别点击的部位
+        const partName = boneClickSystem.detectClickedPart(worldPosition);
+        
         if (partName) {
             // 获取对应的提示文本
             const tipText = getPartTip(partName);
@@ -360,50 +658,6 @@ async function onMouseClick(event) {
             const randomGreeting = defaultGreetings[Math.floor(Math.random() * defaultGreetings.length)];
             showSpeechBubble(randomGreeting, clickedObject);
         }
-    } else {
-        console.log('未检测到点击的对象');
-    }
-}
-
-// 识别点击的部位 - 只分为六个区域
-function identifyClickedPart(object, worldPosition) {
-    if (!vrm || !vrm.scene) return null;
-    
-    // 获取模型的边界框
-    const box = new THREE.Box3().setFromObject(vrm.scene);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    
-    // 计算点击位置相对于模型中心的位置
-    const relativePosition = worldPosition.clone().sub(center);
-    
-    // 根据点击位置的高度来判断部位
-    const height = relativePosition.y;
-    const modelHeight = size.y;
-    const normalizedHeight = height / modelHeight;
-    
-    // 区间划分（假设模型中心为0，整体高度为1）
-    // 头部: >0.35
-    // 胸部: 0.18~0.35
-    // 腹部: 0~0.18
-    // 臀部: -0.13~0
-    // 手臂: 0.05~0.35（左右x方向偏移大于0.12）
-    // 腿部: <-0.13
-    
-    // 判断手臂（左右x方向偏移大于0.12且高度在胸部/腹部区间）
-    if (Math.abs(relativePosition.x) > 0.12 * size.x && normalizedHeight > 0.05 && normalizedHeight < 0.35) {
-        return 'arms';
-    }
-    if (normalizedHeight > 0.35) {
-        return 'head';
-    } else if (normalizedHeight > 0.18) {
-        return 'chest';
-    } else if (normalizedHeight > 0) {
-        return 'belly';
-    } else if (normalizedHeight > -0.13) {
-        return 'hips';
-    } else {
-        return 'legs';
     }
 }
 
@@ -418,18 +672,12 @@ function getModelHeight() {
 
 // 获取部位提示文本
 function getPartTip(partName) {
-    // 首先检查自定义部位提示
+    // 只检查自定义部位提示
     if (partTips[partName]) {
         return partTips[partName];
     }
-    
-    // 然后检查内置的响应文本
-    if (partResponses[partName]) {
-        return partResponses[partName];
-    }
-    
-    // 默认返回问候语
-    return defaultGreetings[Math.floor(Math.random() * defaultGreetings.length)];
+    // 没有事件或没有对应响应时，不展示任何内容
+    return '';
 }
 
 // 加载部位提示配置
@@ -617,20 +865,11 @@ function loadVRMModel(modelPath, onLoadCallback) {
       // 模型加载完成后，重新设置点击事件
       setupClickEvents();
       
-      // 运行测试
-      setTimeout(() => {
-        testClickDetection();
-      }, 1000);
+      // 初始化骨骼点击检测系统
+      boneClickSystem.init(vrm);
       
       if (onLoadCallback) {
         onLoadCallback();
-      }
-
-      // 将动画名写入config，供设置页面显示
-      if(window.electronAPI && window.electronAPI.getConfig && window.electronAPI.setConfig){
-          let cfg = await window.electronAPI.getConfig();
-          cfg._animationNames = animationClips.map(a=>a.name);
-          window.electronAPI.setConfig(cfg);
       }
     },
     (progress) => console.log('加载进度:', 100.0 * (progress.loaded / progress.total), '%'),
@@ -779,48 +1018,3 @@ window.addEventListener('beforeunload', () => {
         }
     }
 });
-
-// 测试函数：验证事件绑定和射线检测
-function testClickDetection() {
-    if (vrm && vrm.scene) {
-        const objects = [];
-        vrm.scene.traverse((child) => {
-            if (child.isMesh) {
-                objects.push(child);
-            }
-        });
-    }
-    // 测试鼠标位置计算
-    const testMouse = new THREE.Vector2(0, 0);
-    raycaster.setFromCamera(testMouse, camera);
-}
-
-const topmostButton = document.getElementById('topmost-button');
-let isTopMost = false;
-const topSvgActive = `<svg t="1750923108852" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="12557" width="200" height="200"><path d="M393.846154 64.174932l117.454119 0.399843H512.499805l117.454119-0.399843-10.395939 10.395939c-18.89262 18.89262-28.488872 44.982429-26.28973 71.472081l20.292073 250.502148c2.998829 36.68567 18.092932 72.171808 42.483405 99.661069l34.186646 38.684889-122.252245-0.899648-55.478329-0.399844h-0.99961l-55.478329 0.399844-122.452167 0.799687 34.186646-38.684888c24.390472-27.589223 39.484576-62.9754 42.483405-99.66107l20.292074-250.402187c2.199141-26.589613-7.397111-52.679422-26.289731-71.472081l-10.395939-10.395939m281.889887-64.174932h-0.199922L512.399844 0.599766h-0.799688L348.36392 0h-0.199922c-20.891839 0-39.684498 13.494729-45.582194 33.58688-4.098399 13.994533-1.899258 30.887934 17.79305 47.581414l38.584927 38.584927c5.597813 5.597813 8.39672 13.294807 7.796955 21.091761L346.464662 391.247169c-1.899258 23.190941-11.195627 45.08239-26.589613 62.475596l-61.87583 69.872706c-8.696603 9.796173-13.894572 22.291292-14.394377 35.386177-0.299883 8.996486 1.599375 18.89262 8.596642 27.28934 6.897306 8.296759 17.293245 12.894963 27.989067 12.894963h0.299882l175.931277-1.199532 55.178446 422.834831 0.399844 3.098789 0.399844-3.098789 55.178446-422.834831 175.931277 1.199532h0.299882c10.795783 0 21.191722-4.598204 27.989067-12.894963 6.897306-8.39672 8.796564-18.292854 8.596642-27.28934-0.399844-13.094885-5.697774-25.590004-14.394377-35.386177l-61.87583-69.872706c-15.393987-17.393206-24.690355-39.284654-26.589613-62.475596l-20.292074-250.402187c-0.599766-7.796954 2.199141-15.593909 7.796955-21.091761l38.584927-38.584927c19.692308-16.693479 21.891449-33.58688 17.79305-47.581414-5.997657-19.992191-24.790316-33.58688-45.682155-33.58688z" p-id="12558" fill="#d81e06"></path></svg>`;
-const topSvg = `<svg t="1750922932228" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="8446" width="200" height="200"><path d="M702.725498 84.067161L822.778602 204.919953l0.099961 0.099961 0.099961 0.099961 0.699727 0.699727 0.099961 0.099961 0.099961 0.099961L944.531043 325.872706h-47.581414c-28.188989 0-54.878563 12.295197-73.071456 33.786802L629.55408 588.170246c-26.789535 31.4877-42.883249 71.472081-45.382272 112.755955l-5.397892 89.265131-340.367044-340.467006 89.265131-5.397891c41.183913-2.499024 81.268255-18.592737 112.755955-45.382273l228.510738-194.324092c21.491605-18.292854 33.786802-44.882468 33.786802-73.071456V84.067161zM690.33034 4.598204c-8.996486 0-18.092932 2.199141-26.389692 6.697384-15.294026 8.39672-27.689184 24.490433-25.19016 55.178446v65.07458c0 9.39633-4.098399 18.292854-11.295588 24.390472L398.944162 350.263178c-21.091761 17.992971-47.481453 28.588832-75.170636 30.288169l-111.25654 6.697384c-15.593909 0.899649-30.588052 6.997267-41.983601 17.693089-7.796954 7.397111-14.594299 17.293245-15.79383 30.288168-1.199531 12.795002 3.698555 25.390082 12.795002 34.486529l0.199922 0.199922 149.541585 147.542366L6.897306 1021.001171l-2.299102 2.998829 2.998828-2.299102 403.542367-310.378758 147.542366 149.541585 0.199922 0.199922c8.196798 8.196798 19.192503 12.994924 30.688012 12.994924 1.299492 0 2.598985-0.099961 3.798517-0.199922 12.894963-1.199531 22.891058-7.996876 30.288168-15.793831 10.695822-11.395549 16.79344-26.389692 17.693089-41.9836l6.697384-111.25654c1.699336-27.689184 12.295197-54.078875 30.288168-75.170637L872.659118 401.143303c6.097618-7.197189 14.994143-11.295588 24.390472-11.295587h65.07458c2.698946 0.199922 5.29793 0.299883 7.796955 0.299883 25.689965 0 39.784459-11.49551 47.381491-25.490043 11.995314-21.891449 7.497071-49.180789-10.096056-66.773917l-0.099961-0.099961-138.245998-137.346349-0.699726-0.699727L730.814526 21.591566l-0.099961-0.099961c-10.995705-10.995705-25.590004-16.893401-40.384225-16.893401z" p-id="8447" fill="#515151"></path></svg>`;
-
-if (topmostButton) {
-    const iconSpan = topmostButton.querySelector('.icon-svg');
-    iconSpan.innerHTML = topSvg;
-    topmostButton.addEventListener('click', () => {
-        isTopMost = !isTopMost;
-        if (window.electronAPI && window.electronAPI.send) {
-            window.electronAPI.send('toggle-always-on-top', isTopMost);
-        } else if (window.electronAPI && window.electronAPI.toggleAlwaysOnTop) {
-            window.electronAPI.toggleAlwaysOnTop(isTopMost);
-        } else if (window.electronAPI && window.electronAPI.invoke) {
-            window.electronAPI.invoke('toggle-always-on-top', isTopMost);
-        }
-        // 切换按钮样式和图标
-        if (isTopMost) {
-            topmostButton.classList.add('active');
-            topmostButton.title = '取消置顶';
-            iconSpan.innerHTML = topSvgActive;
-        } else {
-            topmostButton.classList.remove('active');
-            topmostButton.title = '窗口置顶';
-            iconSpan.innerHTML = topSvg;
-        }
-    });
-}
