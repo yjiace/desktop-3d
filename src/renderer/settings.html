@@ -325,6 +325,11 @@
             config = (await window.electronAPI.getConfig()) || {};
             originalConfig = JSON.parse(JSON.stringify(config));
             
+            // 确保config.model对象存在
+            if (!config.model) {
+                config.model = {};
+            }
+            
             // 从选项配置文件读取选项列表
             const options = (await window.electronAPI.getOptions()) || {};
             
@@ -358,7 +363,7 @@
             ];
 
             // 加载自定义模型到可用模型列表
-            if (config.model.customModels) {
+            if (config.model && config.model.customModels) {
                 availableModels = [
                     ...availableModels,
                     ...config.model.customModels.map(model => ({
@@ -435,7 +440,7 @@
                         <label style="display:flex;align-items:center;gap:8px;">
                             <span>允许点击模型弹出气泡提示</span>
                             <label class="switch">
-                                <input type="checkbox" id="allow-bubble-checkbox" ${config.model.allowBubble !== false ? 'checked' : ''} />
+                                <input type="checkbox" id="allow-bubble-checkbox" ${(config.model && config.model.allowBubble !== false) ? 'checked' : ''} />
                                 <span class="slider"></span>
                             </label>
                         </label>
@@ -444,18 +449,18 @@
                         <label style="display:flex;align-items:center;gap:8px;">
                             <span>语音播报</span>
                             <label class="switch">
-                                <input type="checkbox" id="bubble-tts-checkbox" ${config.model.bubbleTTS ? 'checked' : ''} ${config.model.allowBubble === false ? 'disabled' : ''}/>
+                                <input type="checkbox" id="bubble-tts-checkbox" ${(config.model && config.model.bubbleTTS) ? 'checked' : ''} ${(config.model && config.model.allowBubble === false) ? 'disabled' : ''}/>
                                 <span class="slider"></span>
                             </label>
                         </label>
                     </div>
-                    <div class="form-group" id="bubble-tts-options" style="margin-top:-10px;${!config.model.bubbleTTS ? 'opacity:0.5;pointer-events:none;' : ''}">
+                    <div class="form-group" id="bubble-tts-options" style="margin-top:-10px;${!(config.model && config.model.bubbleTTS) ? 'opacity:0.5;pointer-events:none;' : ''}">
                         <label style="font-size:13px;margin-bottom:4px;">语音类型</label>
                         <select id="bubble-tts-voice" style="width:100%;margin-bottom:8px;"></select>
-                        <label style="font-size:13px;">语速 <span id="bubble-tts-rate-value">${config.model.bubbleTTSRate||1}</span></label>
-                        <input type="range" id="bubble-tts-rate" min="0.5" max="2" step="0.01" value="${config.model.bubbleTTSRate||1}" style="width:100%;">
-                        <label style="font-size:13px;">音量 <span id="bubble-tts-volume-value">${config.model.bubbleTTSVolume||1}</span></label>
-                        <input type="range" id="bubble-tts-volume" min="0" max="1" step="0.01" value="${config.model.bubbleTTSVolume||1}" style="width:100%;">
+                        <label style="font-size:13px;">语速 <span id="bubble-tts-rate-value">${(config.model && config.model.bubbleTTSRate) || 1}</span></label>
+                        <input type="range" id="bubble-tts-rate" min="0.5" max="2" step="0.01" value="${(config.model && config.model.bubbleTTSRate) || 1}" style="width:100%;">
+                        <label style="font-size:13px;">音量 <span id="bubble-tts-volume-value">${(config.model && config.model.bubbleTTSVolume) || 1}</span></label>
+                        <input type="range" id="bubble-tts-volume" min="0" max="1" step="0.01" value="${(config.model && config.model.bubbleTTSVolume) || 1}" style="width:100%;">
                     </div>
                     <div class="builtin-parts">
                         <h4>内置部位提示</h4>
@@ -493,6 +498,7 @@
                 input.oninput = (e) => {
                     const index = parseInt(e.target.dataset.builtinIndex, 10);
                     const part = builtinPartTips[index];
+                    if (!config.model) config.model = {};
                     if (!config.model.partTips) config.model.partTips = [];
                     let userTip = config.model.partTips.find(t => t.name === part.name);
                     if (!userTip) {
@@ -528,7 +534,7 @@
                         // 直接用原始数组索引删除，避免因事件名冲突无法删除
                         const allCustom = userTips.filter(t => !builtinPartTips.find(b => b.name === t.name));
                         const realIdx = userTips.indexOf(allCustom[idx]);
-                        if(realIdx !== -1) {
+                        if(realIdx !== -1 && config.model && config.model.partTips) {
                             config.model.partTips.splice(realIdx, 1);
                             saveConfig();
                             renderCustomParts();
@@ -585,6 +591,7 @@
             renderCustomParts();
             // 添加自定义部位
             container.querySelector('#add-custom-part-btn').onclick = () => {
+                if (!config.model) config.model = {};
                 if (!config.model.partTips) config.model.partTips = [];
                 config.model.partTips.push({ name: '', cn: '', tip: '' });
                 saveConfig();
@@ -639,6 +646,7 @@
 
             // 新增：交互开关事件
             container.querySelector('#allow-bubble-checkbox').onchange = (e) => {
+                if (!config.model) config.model = {};
                 config.model.allowBubble = e.target.checked;
                 // 联动语音开关
                 const ttsBox = container.querySelector('#bubble-tts-checkbox');
@@ -648,6 +656,7 @@
 
             // 新增：语音播报开关事件
             container.querySelector('#bubble-tts-checkbox').onchange = (e) => {
+                if (!config.model) config.model = {};
                 config.model.bubbleTTS = e.target.checked;
                 // 语音参数面板可用性
                 const opts = container.querySelector('#bubble-tts-options');
@@ -665,11 +674,13 @@
 
             // 语速、音量事件
             container.querySelector('#bubble-tts-rate').oninput = (e) => {
+                if (!config.model) config.model = {};
                 config.model.bubbleTTSRate = parseFloat(e.target.value);
                 container.querySelector('#bubble-tts-rate-value').innerText = e.target.value;
                 saveConfig();
             };
             container.querySelector('#bubble-tts-volume').oninput = (e) => {
+                if (!config.model) config.model = {};
                 config.model.bubbleTTSVolume = parseFloat(e.target.value);
                 container.querySelector('#bubble-tts-volume-value').innerText = e.target.value;
                 saveConfig();
@@ -680,13 +691,14 @@
             function fillVoices() {
                 if(!window.speechSynthesis) return;
                 const voices = window.speechSynthesis.getVoices();
-                voiceSelect.innerHTML = voices.map(v => `<option value="${v.voiceURI}" ${config.model.bubbleTTSVoice===v.voiceURI?'selected':''}>${v.name} (${v.lang})</option>`).join('');
+                voiceSelect.innerHTML = voices.map(v => `<option value="${v.voiceURI}" ${(config.model && config.model.bubbleTTSVoice)===v.voiceURI?'selected':''}>${v.name} (${v.lang})</option>`).join('');
             }
             if(window.speechSynthesis) {
                 window.speechSynthesis.onvoiceschanged = fillVoices;
                 fillVoices();
             }
             voiceSelect.onchange = (e) => {
+                if (!config.model) config.model = {};
                 config.model.bubbleTTSVoice = e.target.value;
                 saveConfig();
             };
@@ -722,7 +734,7 @@
                 <div class="form-group">
                     <label>默认动态</label>
                     <select id="scene-action-select">
-                        ${[...availableActions, ...(config.model.customActions||[]).map(a=>({name:a.name,value:a.name}))].map(a => `<option value="${a.value}" ${config.action === a.value ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        ${[...availableActions, ...((config.model && config.model.customActions) || []).map(a=>({name:a.name,value:a.name}))].map(a => `<option value="${a.value}" ${config.action === a.value ? 'selected' : ''}>${a.name}</option>`).join('')}
                     </select>
                     <div id="supported-animations" style="font-size:12px;color:#888;margin-top:6px;"></div>
                 </div>
@@ -850,7 +862,7 @@
 
             function renderCustomActionList() {
                 customActionList.innerHTML = '';
-                const actions = config.model.customActions || [];
+                const actions = (config.model && config.model.customActions) || [];
                 actions.forEach((action, idx) => {
                     const li = document.createElement('li');
                     li.style.display = 'flex';
@@ -859,7 +871,7 @@
                     li.innerHTML = `<span style="flex:1;">${action.name}</span><button style="margin-left:8px;" class="remove-part-btn" title="删除">×</button>`;
                     li.querySelector('button').onclick = async () => {
                         if(confirm('确定要删除该自定义动作吗？')){
-                            config.model.customActions.splice(idx, 1);
+                            (config.model && config.model.customActions) ? config.model.customActions.splice(idx, 1) : null;
                             await window.electronAPI.setConfig(config);
                             renderCustomActionList();
                             renderCurrentSection();
@@ -888,9 +900,10 @@
                 });
                 if (!name) return;
                 // 检查重复
-                const exists = (config.model.customActions||[]).some(a=>a.name===name) || availableActions.some(a=>a.value===name);
+                const exists = ((config.model && config.model.customActions) || []).some(a=>a.name===name) || availableActions.some(a=>a.value===name);
                 if(exists){ alert('动作名已存在，请更换！'); return; }
-                config.model.customActions = config.model.customActions || [];
+                if (!config.model) config.model = {};
+                if (!config.model.customActions) config.model.customActions = [];
                 config.model.customActions.push({ name, path: newPath });
                 await window.electronAPI.setConfig(config);
                 renderCustomActionList();
