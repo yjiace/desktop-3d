@@ -5,16 +5,10 @@
     { "name": "冨美江", "path": "../../assets/冨美江.vrm" }
   ],
   "actions": [
+    { "name": "随机循环", "value": "random_cycle", "path": "" },
     { "name": "待机", "value": "idle", "path": "../../assets/idle.fbx" },
     { "name": "Angry", "value": "angry", "path": "../../assets/Angry.fbx" },
-    { "name": "随机循环", "value": "random_cycle", "path": "" },
-    { "name": "走路", "value": "walk", "path": "" },
-    { "name": "跑步", "value": "run", "path": "" },
-    { "name": "跳跃", "value": "jump", "path": "" },
-    { "name": "挥手", "value": "wave", "path": "" },
-    { "name": "跳舞", "value": "dance", "path": "" },
-    { "name": "胜利", "value": "victory", "path": "" },
-    { "name": "失败", "value": "defeat", "path": "" }
+    { "name": "happy", "value": "happy", "path": "../../assets/happy.fbx" }
   ],
   "stages": [
     { "name": "无舞台", "path": "" },
