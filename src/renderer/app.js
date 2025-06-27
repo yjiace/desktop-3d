@@ -129,25 +129,42 @@ function applySceneSettings(config) {
 // --- 气泡显示功能 ---
 let speechBubble = null;
 let bubbleTimeout = null;
+let currentUtterance = null; // 添加当前语音对象引用
 
 function showSpeechBubble(text, clickedObject) {
     if (!speechBubble) {
         speechBubble = document.getElementById('speech-bubble');
     }
     
+    // 清除之前的定时器
     if (bubbleTimeout) {
         clearTimeout(bubbleTimeout);
     }
     
-    // 设置气泡文本
+    // 立即停止当前正在播放的语音
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        currentUtterance = null;
+    }
+    
+    // 立即设置气泡文本
     speechBubble.textContent = text;
+    
+    // 立即显示气泡（不等待DOM渲染）
+    speechBubble.style.visibility = 'visible';
+    speechBubble.style.opacity = '1';
+    speechBubble.classList.add('visible');
 
-    // 语音播报功能
+    // 语音播报功能 - 立即播放新语音
     (async () => {
         const config = await getConfig();
         if (config?.model?.bubbleTTS && window.speechSynthesis) {
+            // 确保停止之前的语音
             window.speechSynthesis.cancel();
+            
             const utter = new window.SpeechSynthesisUtterance(text);
+            currentUtterance = utter;
+            
             // 语音类型
             if(config.model.bubbleTTSVoice) {
                 const voices = window.speechSynthesis.getVoices();
@@ -166,6 +183,8 @@ function showSpeechBubble(text, clickedObject) {
                     utter.lang = 'zh-CN';
                 }
             }
+            
+            // 立即播放新语音
             window.speechSynthesis.speak(utter);
         }
     })();
@@ -190,8 +209,8 @@ function showSpeechBubble(text, clickedObject) {
     speechBubble.style.transform = 'translateX(-50%)';
     speechBubble.style.maxWidth = '250px';
     speechBubble.style.whiteSpace = 'normal';
-    speechBubble.style.visibility = 'hidden';
-    speechBubble.style.opacity = '0';
+    speechBubble.style.visibility = 'visible';
+    speechBubble.style.opacity = '1';
     // 让DOM渲染后再判断实际尺寸
     setTimeout(() => {
         const rect = speechBubble.getBoundingClientRect();
@@ -237,11 +256,17 @@ function showSpeechBubble(text, clickedObject) {
             speechBubble.classList.remove('bubble-below');
         }
     }, 10);
-    // 显示气泡
-    speechBubble.classList.add('visible');
+    
     // 3秒后自动隐藏
     bubbleTimeout = setTimeout(() => {
         speechBubble.classList.remove('visible');
+        speechBubble.style.visibility = 'hidden';
+        speechBubble.style.opacity = '0';
+        // 停止语音
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            currentUtterance = null;
+        }
     }, 3000);
 }
 
