@@ -603,33 +603,26 @@ function setupClickEvents() {
 async function onMouseClick(event) {
     // 只响应左键
     if (event.button !== 0) return;
-    
     // 判断是否允许弹出气泡
     const config = await getConfig();
     if (!config?.model?.allowBubble) {
         return;
     }
-    
     if (isFixed) {
         return;
     }
-    
     if (!vrm || !vrm.scene) {
         return;
     }
-    
     // 阻止事件冒泡，避免与OrbitControls冲突
     event.preventDefault();
     event.stopPropagation();
-    
     // 计算鼠标位置
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
     // 射线检测
     raycaster.setFromCamera(mouse, camera);
-    
     // 获取所有可点击的对象
     const objects = [];
     vrm.scene.traverse((child) => {
@@ -637,27 +630,22 @@ async function onMouseClick(event) {
             objects.push(child);
         }
     });
-    
     const intersects = raycaster.intersectObjects(objects, true);
-    
     if (intersects.length > 0) {
         const intersect = intersects[0];
         const clickedObject = intersect.object;
         // 获取点击位置的世界坐标
         const worldPosition = intersect.point;
-        
         // 使用优化后的骨骼检测系统识别点击的部位
         const partName = boneClickSystem.detectClickedPart(worldPosition);
-        
         if (partName) {
             // 获取对应的提示文本
             const tipText = getPartTip(partName);
-            showSpeechBubble(tipText, clickedObject);
-        } else {
-            // 随机显示问候语
-            const randomGreeting = defaultGreetings[Math.floor(Math.random() * defaultGreetings.length)];
-            showSpeechBubble(randomGreeting, clickedObject);
+            if (tipText) {
+                showSpeechBubble(tipText, clickedObject);
+            }
         }
+        // 未命中事件或无响应时不显示任何内容
     }
 }
 
