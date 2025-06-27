@@ -1,0 +1,32 @@
+{
+  "models": [
+    { "name": "默认模型", "path": "../../assets/default.vrm" },
+    { "name": "FoxGirl", "path": "../../assets/FoxGirl.vrm" },
+    { "name": "冨美江", "path": "../../assets/冨美江.vrm" },
+    { "name": "model", "path": "../../assets/model.vrm" }
+  ],
+  "actions": [
+    { "name": "待机", "value": "idle", "path": "../../assets/default.fbx" },
+    { "name": "Angry", "value": "angry", "path": "../../assets/Angry.fbx" },
+    { "name": "随机循环", "value": "random_cycle", "path": "" },
+    { "name": "走路", "value": "walk", "path": "" },
+    { "name": "跑步", "value": "run", "path": "" },
+    { "name": "跳跃", "value": "jump", "path": "" },
+    { "name": "挥手", "value": "wave", "path": "" },
+    { "name": "跳舞", "value": "dance", "path": "" },
+    { "name": "胜利", "value": "victory", "path": "" },
+    { "name": "失败", "value": "defeat", "path": "" }
+  ],
+  "stages": [
+    { "name": "无舞台", "path": "" },
+    { "name": "默认舞台", "path": "../../assets/default-stage.glb" }
+  ],
+  "partTips": [
+    { "name": "head", "tip": "头部", "content": "头部" },
+    { "name": "arms", "tip": "手臂", "content": "手臂" },
+    { "name": "legs", "tip": "腿部", "content": "腿部" },
+    { "name": "chest", "tip": "胸部", "content": "胸部" },
+    { "name": "belly", "tip": "腹部", "content": "腹部" },
+    { "name": "hips", "tip": "臀部", "content": "臀部" }
+  ]
+} 

@@ -275,6 +275,16 @@
             </div>
         </div>
     </div>
+    <dialog id="custom-action-dialog">
+        <form method="dialog" style="display:flex;flex-direction:column;gap:8px;min-width:260px;">
+            <label>请输入该动作的名称（英文，不能与已有动作重复）</label>
+            <input id="custom-action-name-input" type="text" required style="padding:6px;font-size:15px;">
+            <menu style="display:flex;gap:8px;justify-content:flex-end;">
+                <button value="cancel" type="reset">取消</button>
+                <button value="ok" type="submit">确定</button>
+            </menu>
+        </form>
+    </dialog>
     <script type="module">
         // --- 工具函数 ---
         const debounce = (func, delay) => {
@@ -295,55 +305,61 @@
         // --- 全局状态 ---
         let config = {};
         let currentSection = 'model';
-        let availableModels = [
-            { name: '默认模型', path: '../../assets/default.vrm' },
-            { name: 'FoxGirl', path: '../../assets/FoxGirl.vrm' },
-            { name: '冨美江', path: '../../assets/冨美江.vrm' }
-        ];
-        // 新增：记录初始配置用于临时切换
+        let availableModels = [];
+        let availableActions = [];
+        let availableStages = [];
+        let builtinPartTips = [];
         let originalConfig = null;
-        // 动作列表（可根据实际支持扩展）
-        const availableActions = [
-            { name: '待机', value: 'idle' },
-            { name: '随机循环', value: 'random_cycle' },
-            { name: '走路', value: 'walk' },
-            { name: '跑步', value: 'run' },
-            { name: '跳跃', value: 'jump' },
-            { name: '挥手', value: 'wave' },
-            { name: '跳舞', value: 'dance' },
-            { name: '胜利', value: 'victory' },
-            { name: '失败', value: 'defeat' }
-        ];
-        
+
         const sectionMap = {
             model: { title: '3D模型设置', render: renderModelSection },
             scene: { title: '3D场景设置', render: renderSceneSection },
         };
-
-        // 内置部位提示
-        const builtinPartTips = [
-            { name: 'head', tip: '头部' },
-            { name: 'arms', tip: '手臂' },
-            { name: 'legs', tip: '腿部' },
-            { name: 'chest', tip: '胸部' },
-            { name: 'belly', tip: '腹部' },
-            { name: 'hips', tip: '臀部' }
-        ];
 
         // --- 初始化和配置管理 ---
         const saveConfig = debounce(() => {
             window.electronAPI && window.electronAPI.setConfig(config);
         }, 300);
 
-        async function loadConfigAndRender() {
+        async function loadConfigAndOptions() {
             config = (await window.electronAPI.getConfig()) || {};
-            // 记录初始配置
-            if (!originalConfig) originalConfig = JSON.parse(JSON.stringify(config));
-            // 确保配置对象中有基本结构
-            config.model = config.model || {};
-            config.scene = config.scene || {};
-            config.model.partTips = config.model.partTips || [];
-            config.model.customModels = config.model.customModels || [];
+            originalConfig = JSON.parse(JSON.stringify(config));
+            
+            // 从选项配置文件读取选项列表
+            const options = (await window.electronAPI.getOptions()) || {};
+            
+            availableModels = options.models || [
+                { name: '默认模型', path: '../../assets/default.vrm' },
+                { name: 'FoxGirl', path: '../../assets/FoxGirl.vrm' },
+                { name: '冨美江', path: '../../assets/冨美江.vrm' }
+            ];
+            availableActions = options.actions || [
+                { name: '待机', value: 'idle' },
+                { name: '随机循环', value: 'random_cycle' },
+                { name: '走路', value: 'walk' },
+                { name: '跑步', value: 'run' },
+                { name: '跳跃', value: 'jump' },
+                { name: '挥手', value: 'wave' },
+                { name: '跳舞', value: 'dance' },
+                { name: '胜利', value: 'victory' },
+                { name: '失败', value: 'defeat' }
+            ];
+            availableStages = options.stages || [
+                { name: '无舞台', path: '' },
+                { name: '默认舞台', path: '../../assets/default-stage.glb' }
+            ];
+            builtinPartTips = options.partTips || [
+                { name: 'head', tip: '头部' },
+                { name: 'arms', tip: '手臂' },
+                { name: 'legs', tip: '腿部' },
+                { name: 'chest', tip: '胸部' },
+                { name: 'belly', tip: '腹部' },
+                { name: 'hips', tip: '臀部' }
+            ];
+
+            console.log('[设置页面] 内置模型列表:', availableModels);
+            console.log('[设置页面] 内置动作列表:', availableActions);
+            console.log('[设置页面] 内置舞台列表:', availableStages);
 
             // 加载自定义模型到可用模型列表
             if (config.model.customModels) {
@@ -468,7 +484,7 @@
             // 渲染内置部位
             builtinPartTips.forEach((part, index) => {
                 let userTip = userTips.find(t => t.name === part.name);
-                let tipValue = userTip ? userTip.tip : part.tip;
+                let tipValue = userTip ? userTip.tip : (part.content || part.tip);
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <span style="width:80px;display:inline-block;">${part.tip}</span>
@@ -695,18 +711,31 @@
                         <button id="stage-upload-btn" class="add-part-btn">上传新舞台</button>
                         ${isCustomStage ? `<button id="remove-stage-btn" class="add-part-btn btn-danger">移除舞台</button>` : ''}
                     </div>
+                    <div style="margin-top: 8px;">
+                        <label>内置舞台</label>
+                        <select id="builtin-stage-select">
+                            ${availableStages.map(stage => 
+                                `<option value="${stage.path}" ${config.scene?.stagePath === stage.path ? 'selected' : ''}>
+                                    ${stage.name}
+                                </option>`
+                            ).join('')}
+                        </select>
+                    </div>
                 </div>
                 <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
                 <div class="form-group">
                     <label>默认动态</label>
                     <select id="scene-action-select">
-                        ${availableActions.map(a => `<option value="${a.value}" ${config.action === a.value ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        ${[...availableActions, ...(config.model.customActions||[]).map(a=>({name:a.name,value:a.name}))].map(a => `<option value="${a.value}" ${config.action === a.value ? 'selected' : ''}>${a.name}</option>`).join('')}
                     </select>
                     <div id="supported-animations" style="font-size:12px;color:#888;margin-top:6px;"></div>
                 </div>
                 <div class="form-group">
                     <h4>自定义动作</h4>
                     <p style="font-size:12px; color: #666;">程序会自动加载模型内包含的动画。选择"随机循环"可以在所有可用动画中随机播放。</p>
+                    <input type="file" id="custom-action-upload" accept=".glb,.gltf,.fbx" style="display:none;">
+                    <button id="upload-custom-action-btn">上传自定义动作</button>
+                    <ul id="custom-action-list" style="margin-top:10px;"></ul>
                 </div>
                 <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;" />
                 <div class="form-group">
@@ -730,6 +759,13 @@
             // 封装一个函数用于更新配置并触发预览
             const updateConfigAndPreview = () => {
                 window.electronAPI.setConfig(config);
+            };
+            
+            // 内置舞台选择
+            container.querySelector('#builtin-stage-select').onchange = (e) => {
+                if (!config.scene) config.scene = {};
+                config.scene.stagePath = e.target.value || undefined;
+                updateConfigAndPreview();
             };
             
             // 舞台上传
@@ -810,10 +846,64 @@
                     }
                 });
             }
+
+            // --- 自定义动作上传与管理 ---
+            const customActionInput = container.querySelector('#custom-action-upload');
+            const uploadCustomActionBtn = container.querySelector('#upload-custom-action-btn');
+            const customActionList = container.querySelector('#custom-action-list');
+
+            function renderCustomActionList() {
+                customActionList.innerHTML = '';
+                const actions = config.model.customActions || [];
+                actions.forEach((action, idx) => {
+                    const li = document.createElement('li');
+                    li.style.display = 'flex';
+                    li.style.alignItems = 'center';
+                    li.style.marginBottom = '6px';
+                    li.innerHTML = `<span style="flex:1;">${action.name}</span><button style="margin-left:8px;" class="remove-part-btn" title="删除">×</button>`;
+                    li.querySelector('button').onclick = async () => {
+                        if(confirm('确定要删除该自定义动作吗？')){
+                            config.model.customActions.splice(idx, 1);
+                            await window.electronAPI.setConfig(config);
+                            renderCustomActionList();
+                            renderCurrentSection();
+                        }
+                    };
+                    customActionList.appendChild(li);
+                });
+            }
+            renderCustomActionList();
+
+            uploadCustomActionBtn.onclick = () => customActionInput.click();
+            customActionInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const newPath = await window.electronAPI.copyToAssets(file.path);
+                // 使用自定义弹窗获取动作名
+                const dialog = document.getElementById('custom-action-dialog');
+                const nameInput = document.getElementById('custom-action-name-input');
+                nameInput.value = '';
+                dialog.showModal();
+                let name = await new Promise(resolve => {
+                    dialog.addEventListener('close', function handler() {
+                        dialog.removeEventListener('close', handler);
+                        resolve(dialog.returnValue === 'ok' ? nameInput.value.trim() : '');
+                    });
+                });
+                if (!name) return;
+                // 检查重复
+                const exists = (config.model.customActions||[]).some(a=>a.name===name) || availableActions.some(a=>a.value===name);
+                if(exists){ alert('动作名已存在，请更换！'); return; }
+                config.model.customActions = config.model.customActions || [];
+                config.model.customActions.push({ name, path: newPath });
+                await window.electronAPI.setConfig(config);
+                renderCustomActionList();
+                renderCurrentSection();
+            };
         }
 
         // --- 初始加载 ---
-        loadConfigAndRender();
+        loadConfigAndOptions();
     </script>
 </body>
 </html> 

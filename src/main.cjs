@@ -217,6 +217,13 @@ function getDefaultConfig() {
   return JSON.parse(raw);
 }
 
+// 读取选项配置
+function getOptionsConfig() {
+  const optionsPath = path.join(__dirname, 'renderer/config.options.json');
+  const raw = fs.readFileSync(optionsPath, 'utf-8');
+  return JSON.parse(raw);
+}
+
 // 初始化配置到数据库
 async function initConfig() {
   if (!store) {
@@ -227,7 +234,8 @@ async function initConfig() {
   const defaultConfig = getDefaultConfig();
 
   // 如果没有配置，或者存储的模型是旧的、不正确的默认路径，则重置为默认配置
-  if (!currentConfig || currentConfig.modelPath === 'assets/default.vrm') {
+  if (!currentConfig || currentConfig.modelPath === 'assets/default.vrm' || !currentConfig.builtin) {
+    console.log('[主进程] 初始化或升级配置:', defaultConfig);
     store.set('config', defaultConfig);
   }
 }
@@ -240,6 +248,10 @@ ipcMain.handle('get-config', async () => {
   return store.get('config');
 });
 
+ipcMain.handle('get-options', async () => {
+  return getOptionsConfig();
+});
+
 ipcMain.on('set-config', async (event, config) => {
   if (!store) {
     Store = (await import('electron-store')).default;
@@ -247,7 +259,11 @@ ipcMain.on('set-config', async (event, config) => {
   }
   store.set('config', config);
   // 通知主窗口刷新
-  if (mainWindow) mainWindow.webContents.send('config-updated', config);
+  if (mainWindow) {
+    mainWindow.webContents.send('config-updated', config);
+  } else {
+    console.warn('[主进程] mainWindow 不存在，无法发送 config-updated');
+  }
 });
 
 // 新增：保存3D模型状态
