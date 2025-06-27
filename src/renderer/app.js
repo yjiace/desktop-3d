@@ -599,6 +599,29 @@ function setupClickEvents() {
     canvas.addEventListener('pointerdown', onMouseClick);
 }
 
+// 部位与表情的映射
+const partToExpression = {
+    head: 'happy',
+    chest: 'angry',
+    belly: 'surprised',
+    hips: 'sad',
+    arms: 'aa',
+    legs: 'oh'
+};
+
+// --- 表情平滑过渡状态变量 ---
+let currentExpression = null;      // 当前表情名
+let targetExpression = null;       // 目标表情名
+let expressionWeight = 0;          // 当前表情权重
+let expressionTransitionSpeed = 0.08; // 过渡速度（可调，越大越快）
+
+// 平滑切换表情
+function setVrmExpressionSmooth(expressionName) {
+    if (!vrm || !vrm.expressionManager) return;
+    if (expressionName === targetExpression) return; // 已是目标表情
+    targetExpression = expressionName;
+}
+
 // 修改点击事件处理函数
 async function onMouseClick(event) {
     // 只响应左键
@@ -634,18 +657,19 @@ async function onMouseClick(event) {
     if (intersects.length > 0) {
         const intersect = intersects[0];
         const clickedObject = intersect.object;
-        // 获取点击位置的世界坐标
         const worldPosition = intersect.point;
-        // 使用优化后的骨骼检测系统识别点击的部位
         const partName = boneClickSystem.detectClickedPart(worldPosition);
         if (partName) {
-            // 获取对应的提示文本
+            // 1. 平滑切换表情
+            const expression = partToExpression[partName];
+            setVrmExpressionSmooth(expression);
+
+            // 2. 显示气泡
             const tipText = getPartTip(partName);
             if (tipText) {
                 showSpeechBubble(tipText, clickedObject);
             }
         }
-        // 未命中事件或无响应时不显示任何内容
     }
 }
 
@@ -920,6 +944,37 @@ function animate() {
   if (mixer) {
     mixer.update(delta);
   }
+
+  // --- 表情平滑过渡 ---
+  if (vrm && vrm.expressionManager) {
+      // 先将所有相关表情权重设为0
+      Object.values(partToExpression).forEach(expr => {
+          if (expr !== targetExpression) {
+              vrm.expressionManager.setValue(expr, 0);
+          }
+      });
+      // 插值到目标表情
+      if (targetExpression) {
+          if (currentExpression !== targetExpression && expressionWeight > 0) {
+              // 旧表情插值到0
+              expressionWeight -= expressionTransitionSpeed;
+              if (expressionWeight < 0) expressionWeight = 0;
+              if (currentExpression) vrm.expressionManager.setValue(currentExpression, expressionWeight);
+              if (expressionWeight === 0) {
+                  currentExpression = targetExpression;
+              }
+          } else {
+              // 新表情插值到1
+              if (expressionWeight < 1) {
+                  expressionWeight += expressionTransitionSpeed;
+                  if (expressionWeight > 1) expressionWeight = 1;
+              }
+              if (currentExpression) vrm.expressionManager.setValue(currentExpression, expressionWeight);
+          }
+      }
+      vrm.expressionManager.update();
+  }
+
   renderer.render(scene, camera);
 }
 
