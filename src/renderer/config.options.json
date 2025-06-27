@@ -2,8 +2,7 @@
   "models": [
     { "name": "默认模型", "path": "../../assets/default.vrm" },
     { "name": "FoxGirl", "path": "../../assets/FoxGirl.vrm" },
-    { "name": "冨美江", "path": "../../assets/冨美江.vrm" },
-    { "name": "model", "path": "../../assets/model.vrm" }
+    { "name": "冨美江", "path": "../../assets/冨美江.vrm" }
   ],
   "actions": [
     { "name": "待机", "value": "idle", "path": "../../assets/default.fbx" },

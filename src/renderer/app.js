@@ -257,7 +257,6 @@ function getHeadPosition() {
         const headBone = vrm.humanoid.getBoneNode('head');
         const headPosition = new THREE.Vector3();
         headBone.getWorldPosition(headPosition);
-        console.log('使用VRM头部骨骼位置:', headPosition.toArray());
         return headPosition;
     }
     
@@ -267,9 +266,7 @@ function getHeadPosition() {
     const center = box.getCenter(new THREE.Vector3());
     
     // 返回模型顶部位置（头部位置）
-    const headPosition = new THREE.Vector3(center.x, center.y + size.y * 0.5, center.z);
-    console.log('使用计算头部位置:', headPosition.toArray(), '模型尺寸:', size.toArray());
-    return headPosition;
+    return new THREE.Vector3(center.x, center.y + size.y * 0.5, center.z);
 }
 
 // --- 点击检测功能 ---
@@ -285,33 +282,23 @@ function setupClickEvents() {
     
     // 添加新的事件监听器
     canvas.addEventListener('pointerdown', onMouseClick);
-    
-    console.log('点击事件已设置，canvas元素:', canvas);
 }
 
 // 修改点击事件处理函数
 async function onMouseClick(event) {
     // 只响应左键
     if (event.button !== 0) return;
-    console.log('点击事件触发:', event.type, '目标:', event.target);
-    
     // 新增：判断是否允许弹出气泡
     const config = await getConfig();
     if (!config?.model?.allowBubble) {
-        console.log('未开启气泡弹出，忽略点击');
         return;
     }
-    
     if (isFixed) {
-        console.log('模型已固定，忽略点击');
         return;
     }
-    
     if (!vrm || !vrm.scene) {
-        console.log('VRM模型未加载，忽略点击');
         return;
     }
-    
     // 阻止事件冒泡，避免与OrbitControls冲突
     event.preventDefault();
     event.stopPropagation();
@@ -320,9 +307,7 @@ async function onMouseClick(event) {
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    console.log('鼠标位置:', { x: mouse.x, y: mouse.y, clientX: event.clientX, clientY: event.clientY });
-    
+
     // 射线检测
     raycaster.setFromCamera(mouse, camera);
     
@@ -333,35 +318,21 @@ async function onMouseClick(event) {
             objects.push(child);
         }
     });
-    
-    console.log('可点击对象数量:', objects.length);
-    
     const intersects = raycaster.intersectObjects(objects, true);
-    
-    console.log('射线检测结果:', intersects.length, '个交点');
-    
     if (intersects.length > 0) {
         const intersect = intersects[0];
         const clickedObject = intersect.object;
-        
-        console.log('点击的对象:', clickedObject.name || '未命名对象');
-        console.log('交点位置:', intersect.point.toArray());
-        
         // 获取点击位置的世界坐标
         const worldPosition = intersect.point;
-        
         // 尝试识别点击的部位
         const partName = identifyClickedPart(clickedObject, worldPosition);
-        
         if (partName) {
             // 获取对应的提示文本
             const tipText = getPartTip(partName);
-            console.log('显示部位提示:', partName, tipText);
             showSpeechBubble(tipText, clickedObject);
         } else {
             // 随机显示问候语
             const randomGreeting = defaultGreetings[Math.floor(Math.random() * defaultGreetings.length)];
-            console.log('显示随机问候语:', randomGreeting);
             showSpeechBubble(randomGreeting, clickedObject);
         }
     } else {
@@ -626,8 +597,6 @@ function loadVRMModel(modelPath, onLoadCallback) {
         testClickDetection();
       }, 1000);
       
-      console.log('VRM 模型加载成功，点击事件已重新设置');
-
       if (onLoadCallback) {
         onLoadCallback();
       }
@@ -788,30 +757,17 @@ window.addEventListener('beforeunload', () => {
 
 // 测试函数：验证事件绑定和射线检测
 function testClickDetection() {
-    console.log('=== 开始测试点击检测 ===');
-    console.log('Canvas元素:', canvas);
-    console.log('VRM模型:', vrm);
-    console.log('场景:', scene);
-    console.log('相机:', camera);
-    console.log('射线检测器:', raycaster);
-    
     if (vrm && vrm.scene) {
         const objects = [];
         vrm.scene.traverse((child) => {
             if (child.isMesh) {
                 objects.push(child);
-                console.log('发现可点击对象:', child.name || '未命名', child);
             }
         });
-        console.log('总共发现', objects.length, '个可点击对象');
     }
-    
     // 测试鼠标位置计算
     const testMouse = new THREE.Vector2(0, 0);
     raycaster.setFromCamera(testMouse, camera);
-    console.log('测试射线方向:', raycaster.ray.direction.toArray());
-    
-    console.log('=== 测试完成 ===');
 }
 
 const topmostButton = document.getElementById('topmost-button');
