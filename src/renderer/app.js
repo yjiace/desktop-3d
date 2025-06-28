@@ -917,7 +917,6 @@ function loadVRMModel(modelPath, onLoadCallback) {
         onLoadCallback();
       }
     },
-    (progress) => console.log('加载进度:', 100.0 * (progress.loaded / progress.total), '%'),
     (error) => {
       alert('模型加载失败！');
       console.error('加载失败:', error);
