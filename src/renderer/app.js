@@ -8,6 +8,7 @@ let isFixed = false;
 let currentAction = 'idle';
 let randomAnimationInterval = null;
 let animationClips = [];
+let lastSavedState = null; // 记录上次保存的状态
 
 // --- 部位提示配置 ---
 let partTips = {
@@ -348,14 +349,22 @@ const saveModelState = debounce(async (state) => {
     if (window.electronAPI && window.electronAPI.saveModelState) {
         await window.electronAPI.saveModelState(state);
     }
-}, 500);
+}, 300);
+
+// 立即保存模型状态（不使用防抖）
+const saveModelStateImmediate = async (state) => {
+    if (window.electronAPI && window.electronAPI.saveModelState) {
+        await window.electronAPI.saveModelState(state);
+    }
+};
 
 // 获取模型状态
 async function getModelState() {
     if (window.electronAPI && window.electronAPI.getModelState) {
-        return await window.electronAPI.getModelState();
+        const state = await window.electronAPI.getModelState();
+        return state;
     }
-    return modelState;
+    return null;
 }
 
 function playAnimation(name) {
@@ -750,7 +759,6 @@ async function loadPartTips() {
             });
         }
     } catch (error) {
-        console.error('加载部位提示失败:', error);
     }
 }
 
@@ -827,6 +835,8 @@ async function loadModelFromConfig() {
 
   // 确保配置包含必要的模型设置
   if (!config.model) {
+    // 保存当前的modelState（如果存在）
+    const savedModelState = config.modelState;
     config.model = {
       allowBubble: true,
       bubbleTTS: false,
@@ -842,6 +852,10 @@ async function loadModelFromConfig() {
         { name: "legs", tip: "腿有点酸呢~" }
       ]
     };
+    // 恢复保存的modelState
+    if (savedModelState) {
+      config.modelState = savedModelState;
+    }
     // 保存修复后的配置
     if (window.electronAPI && window.electronAPI.setConfig) {
       window.electronAPI.setConfig(config);
@@ -894,23 +908,27 @@ function loadVRMModel(modelPath, onLoadCallback) {
       const savedState = await getModelState();
       
       // 如果有保存的状态，应用相机和控制器状态
-      if (savedState && savedState.cameraPosition) {
+      if (savedState && savedState.cameraPosition && Array.isArray(savedState.cameraPosition) && savedState.cameraPosition.length === 3) {
         // 应用相机状态
         camera.position.set(...savedState.cameraPosition);
-        camera.fov = savedState.cameraFov;
+        camera.fov = savedState.cameraFov || 30;
         camera.updateProjectionMatrix();
         
         // 应用控制器状态
-        controls.target.set(...savedState.cameraTarget);
+        if (savedState.cameraTarget && Array.isArray(savedState.cameraTarget) && savedState.cameraTarget.length === 3) {
+          controls.target.set(...savedState.cameraTarget);
+        } else {
+          controls.target.set(0, 0, 0);
+        }
         controls.update();
         
         // 应用缩放
-        if (savedState.scale) {
+        if (savedState.scale && typeof savedState.scale === 'number' && savedState.scale > 0) {
           vrm.scene.scale.setScalar(savedState.scale);
         }
         
         // 应用固定状态
-        isFixed = savedState.isFixed;
+        isFixed = savedState.isFixed || false;
         if (isFixed) {
           const characterContainer = document.getElementById('character-container');
           const pinButton = document.getElementById('pin-button');
@@ -948,17 +966,14 @@ function loadVRMModel(modelPath, onLoadCallback) {
       // 初始化骨骼点击检测系统
       boneClickSystem.init(vrm);
       
-      // 确保在模型加载完成后立即保存当前状态
-      setTimeout(() => {
-        const currentState = {
-          scale: vrm.scene.scale.x,
-          cameraPosition: camera.position.toArray(),
-          cameraTarget: controls.target.toArray(),
-          cameraFov: camera.fov,
-          isFixed: isFixed
-        };
-        saveModelState(currentState);
-      }, 100);
+      // 初始化lastSavedState，确保状态比较逻辑正常工作
+      lastSavedState = {
+        scale: vrm.scene.scale.x,
+        cameraPosition: camera.position.toArray(),
+        cameraTarget: controls.target.toArray(),
+        cameraFov: camera.fov,
+        isFixed: isFixed
+      };
       
       if (onLoadCallback) {
         onLoadCallback();
@@ -966,16 +981,13 @@ function loadVRMModel(modelPath, onLoadCallback) {
     },
     (progress) => {
       // 可以在这里添加加载进度显示
-      console.log('模型加载进度:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
     },
     (error) => {
-      console.error('模型加载失败:', error);
       // 使用更友好的错误提示，而不是弹框
       showSpeechBubble('模型加载失败，请检查文件路径是否正确', null);
       
       // 尝试加载默认模型
       if (modelPath !== '../../assets/default.vrm') {
-        console.log('尝试加载默认模型...');
         loadVRMModel('../../assets/default.vrm', onLoadCallback);
       }
     }
@@ -1027,6 +1039,30 @@ function animate() {
   lookAtTarget.position.set(0, 1.2, -1).applyEuler(euler);
   
   controls.update(); // 更新控制器
+
+  // 保存控制器变化后的状态（仅在状态发生变化且用户正在交互时）
+  if (vrm && vrm.scene && controls.enabled && controls.enableDamping) {
+    const currentState = {
+      scale: vrm.scene.scale.x,
+      cameraPosition: camera.position.toArray(),
+      cameraTarget: controls.target.toArray(),
+      cameraFov: camera.fov,
+      isFixed: isFixed
+    };
+    
+    // 检查状态是否发生变化
+    const stateChanged = !lastSavedState || 
+      lastSavedState.scale !== currentState.scale ||
+      lastSavedState.cameraFov !== currentState.cameraFov ||
+      lastSavedState.isFixed !== currentState.isFixed ||
+      !lastSavedState.cameraPosition.every((val, i) => Math.abs(val - currentState.cameraPosition[i]) < 0.01) ||
+      !lastSavedState.cameraTarget.every((val, i) => Math.abs(val - currentState.cameraTarget[i]) < 0.01);
+    
+    if (stateChanged) {
+      lastSavedState = currentState;
+      saveModelState(currentState);
+    }
+  }
 
   if (vrm) {
     vrm.update(delta);
@@ -1090,6 +1126,7 @@ pinButton.addEventListener('click', () => {
             cameraFov: camera.fov,
             isFixed: isFixed
         };
+        lastSavedState = newState;
         saveModelState(newState);
     }
 });
@@ -1111,6 +1148,7 @@ function onWindowResize() {
             cameraFov: camera.fov,
             isFixed: isFixed
         };
+        lastSavedState = newState;
         saveModelState(newState);
     }
 }
@@ -1136,8 +1174,6 @@ window.addEventListener('beforeunload', () => {
             isFixed: isFixed
         };
         // 立即保存，不使用防抖
-        if (window.electronAPI && window.electronAPI.saveModelState) {
-            window.electronAPI.saveModelState(finalState);
-        }
+        saveModelStateImmediate(finalState);
     }
 });

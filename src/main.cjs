@@ -168,7 +168,6 @@ ipcMain.handle('copy-to-assets', async (event, sourcePath) => {
     // 返回一个渲染进程可以使用的、相对于 index.html 的路径
     return `../../assets/${fileName}`;
   } catch (err) {
-    console.error('Failed to copy file:', err);
     throw err;
   }
 });
@@ -185,11 +184,9 @@ ipcMain.handle('delete-from-assets', async (event, rendererRelativePath) => {
       fs.unlinkSync(absolutePath);
       return { success: true, path: absolutePath };
     } else {
-      console.warn(`Attempted to delete non-existent file: ${absolutePath}`);
       return { success: false, error: 'File not found', path: absolutePath };
     }
   } catch (err) {
-    console.error('Failed to delete file:', err);
     throw err;
   }
 });
@@ -235,8 +232,16 @@ async function initConfig() {
 
   // 如果没有配置，或者存储的模型是旧的、不正确的默认路径，则重置为默认配置
   if (!currentConfig || currentConfig.modelPath === 'assets/default.vrm' || !currentConfig.builtin) {
-    console.log('[主进程] 初始化或升级配置:', defaultConfig);
+    // 保留用户保存的modelState（如果存在）
+    const savedModelState = currentConfig?.modelState;
     store.set('config', defaultConfig);
+    
+    // 如果有保存的modelState，恢复它
+    if (savedModelState) {
+      const newConfig = store.get('config');
+      newConfig.modelState = savedModelState;
+      store.set('config', newConfig);
+    }
   }
 }
 
@@ -257,12 +262,18 @@ ipcMain.on('set-config', async (event, config) => {
     Store = (await import('electron-store')).default;
     store = new Store();
   }
+  
+  // 保留现有的modelState（如果新配置中没有提供）
+  const currentConfig = store.get('config');
+  if (currentConfig?.modelState && !config.modelState) {
+    config.modelState = currentConfig.modelState;
+  }
+  
   store.set('config', config);
+  
   // 通知主窗口刷新
   if (mainWindow) {
     mainWindow.webContents.send('config-updated', config);
-  } else {
-    console.warn('[主进程] mainWindow 不存在，无法发送 config-updated');
   }
 });
 
@@ -284,7 +295,8 @@ ipcMain.handle('get-model-state', async () => {
     store = new Store();
   }
   const config = store.get('config');
-  return config?.modelState || getDefaultConfig().modelState;
+  const state = config?.modelState || getDefaultConfig().modelState;
+  return state;
 });
 
 ipcMain.on('reset-config', async (event) => {
@@ -293,7 +305,15 @@ ipcMain.on('reset-config', async (event) => {
     Store = (await import('electron-store')).default;
     store = new Store();
   }
+  
+  // 保留现有的modelState（如果存在）
+  const currentConfig = store.get('config');
+  if (currentConfig?.modelState) {
+    def.modelState = currentConfig.modelState;
+  }
+  
   store.set('config', def);
+  
   // 通知主窗口刷新
   if (mainWindow) mainWindow.webContents.send('config-updated', def);
 });
