@@ -689,14 +689,57 @@
             // 语音类型下拉
             const voiceSelect = container.querySelector('#bubble-tts-voice');
             function fillVoices() {
-                if(!window.speechSynthesis) return;
-                const voices = window.speechSynthesis.getVoices();
-                voiceSelect.innerHTML = voices.map(v => `<option value="${v.voiceURI}" ${(config.model && config.model.bubbleTTSVoice)===v.voiceURI?'selected':''}>${v.name} (${v.lang})</option>`).join('');
+                // 添加微软TTS语音选项
+                const microsoftVoices = {
+                    'zh-CN-XiaoxiaoNeural': '晓晓 - 温暖活泼 (微软TTS)',
+                    'zh-CN-XiaoyiNeural': '晓伊 - 温暖亲切 (微软TTS)',
+                    'zh-CN-YunxiNeural': '云希 - 男声，稳重 (微软TTS)',
+                    'zh-CN-YunyangNeural': '云扬 - 男声，专业 (微软TTS)',
+                    'zh-CN-XiaohanNeural': '晓涵 - 自然流畅 (微软TTS)',
+                    'zh-CN-XiaomengNeural': '晓梦 - 甜美活力 (微软TTS)',
+                    'zh-CN-XiaochenNeural': '晓辰 - 温和从容 (微软TTS)',
+                    'zh-CN-XiaoruiNeural': '晓睿 - 男声，儒雅 (微软TTS)',
+                    'zh-CN-XiaoshuangNeural': '晓双 - 女声，温柔 (微软TTS)',
+                    'zh-CN-YunfengNeural': '云枫 - 男声，成熟 (微软TTS)',
+                    'zh-CN-YunjianNeural': '云健 - 男声，阳光 (微软TTS)',
+                    'zh-CN-XiaoxuanNeural': '晓萱 - 女声，知性 (微软TTS)',
+                    'zh-CN-YunxiaNeural': '云夏 - 男声，青春 (微软TTS)',
+                    'zh-CN-XiaomoNeural': '晓墨 - 女声，优雅 (微软TTS)',
+                    'zh-CN-XiaozhenNeural': '晓甄 - 女声，自信 (微软TTS)',
+                    'en-US-JennyNeural': 'Jenny - 英文 (微软TTS)',
+                    'en-US-GuyNeural': 'Guy - 英文 (微软TTS)',
+                    'ja-JP-NanamiNeural': 'Nanami - 日文 (微软TTS)',
+                    'ja-JP-KeitaNeural': 'Keita - 日文 (微软TTS)',
+                    'ko-KR-SunHiNeural': 'Sun-Hi - 韩文 (微软TTS)',
+                    'ko-KR-InJoonNeural': 'InJoon - 韩文 (微软TTS)'
+                };
+                
+                let voiceOptions = [];
+                
+                // 添加微软TTS选项
+                Object.entries(microsoftVoices).forEach(([value, name]) => {
+                    voiceOptions.push(`<option value="${value}" ${(config.model && config.model.bubbleTTSVoice)===value?'selected':''}>${name}</option>`);
+                });
+                
+                // 添加浏览器语音选项（如果有的话）
+                if(window.speechSynthesis) {
+                    const voices = window.speechSynthesis.getVoices();
+                    voices.forEach(v => {
+                        voiceOptions.push(`<option value="${v.voiceURI}" ${(config.model && config.model.bubbleTTSVoice)===v.voiceURI?'selected':''}>${v.name} (${v.lang}) - 浏览器语音</option>`);
+                    });
+                }
+                
+                voiceSelect.innerHTML = voiceOptions.join('');
             }
+            
+            // 初始化语音选项
+            fillVoices();
+            
+            // 如果浏览器语音合成可用，监听语音变化事件
             if(window.speechSynthesis) {
                 window.speechSynthesis.onvoiceschanged = fillVoices;
-                fillVoices();
             }
+            
             voiceSelect.onchange = (e) => {
                 if (!config.model) config.model = {};
                 config.model.bubbleTTSVoice = e.target.value;

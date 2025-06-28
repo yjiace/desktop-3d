@@ -11,8 +11,8 @@
   },
   "model": {
     "allowBubble": true,
-    "bubbleTTS": false,
-    "bubbleTTSVoice": "",
+    "bubbleTTS": true,
+    "bubbleTTSVoice": "zh-CN-XiaoxiaoNeural",
     "bubbleTTSRate": 1.0,
     "bubbleTTSVolume": 1.0,
     "partTips": [

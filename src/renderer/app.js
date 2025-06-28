@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+import MicrosoftTTS from './microsoft-tts.js';
 
 // --- 全局状态 ---
 let isFixed = false;
@@ -9,6 +10,11 @@ let currentAction = 'idle';
 let randomAnimationInterval = null;
 let animationClips = [];
 let lastSavedState = null; // 记录上次保存的状态
+
+// --- TTS相关全局变量 ---
+let microsoftTTS = new MicrosoftTTS();
+let currentAudio = null; // 当前播放的音频对象
+let isPlayingAudio = false; // 是否正在播放音频
 
 // --- 部位提示配置 ---
 let partTips = {
@@ -428,7 +434,6 @@ function applySceneSettings(config) {
 // --- 气泡显示功能 ---
 let speechBubble = null;
 let bubbleTimeout = null;
-let currentUtterance = null; // 添加当前语音对象引用
 
 function showSpeechBubble(text, clickedObject) {
     if (!speechBubble) {
@@ -441,10 +446,7 @@ function showSpeechBubble(text, clickedObject) {
     }
     
     // 立即停止当前正在播放的语音
-    if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        currentUtterance = null;
-    }
+    stopCurrentAudio();
     
     // 立即设置气泡文本
     speechBubble.textContent = text;
@@ -454,37 +456,39 @@ function showSpeechBubble(text, clickedObject) {
     speechBubble.style.opacity = '1';
     speechBubble.classList.add('visible');
 
-    // 语音播报功能 - 立即播放新语音
+    // 语音播报功能 - 使用微软TTS
     (async () => {
         const config = await getConfig();
-        if (config?.model?.bubbleTTS && window.speechSynthesis) {
-            // 确保停止之前的语音
-            window.speechSynthesis.cancel();
-            
-            const utter = new window.SpeechSynthesisUtterance(text);
-            currentUtterance = utter;
-            
-            // 语音类型
-            if(config.model.bubbleTTSVoice) {
-                const voices = window.speechSynthesis.getVoices();
-                const v = voices.find(v=>v.voiceURI===config.model.bubbleTTSVoice);
-                if(v) utter.voice = v;
-            }
-            // 语速
-            utter.rate = config.model.bubbleTTSRate || 1;
-            // 音量
-            utter.volume = config.model.bubbleTTSVolume || 1;
-            // 自动选择语言（如未指定语音类型）
-            if (!utter.voice) {
-                if (/[\u0000-\u007f]/.test(text) && !/[\u4e00-\u9fa5]/.test(text)) {
-                    utter.lang = 'en-US';
+        
+        if (config?.model?.bubbleTTS) {
+            try {
+                // 获取TTS配置
+                const voice = config.model.bubbleTTSVoice || 'zh-CN-XiaoxiaoNeural';
+                const speed = config.model.bubbleTTSRate || 1.0;
+                
+                // 判断是否为微软TTS语音
+                const isMicrosoftVoice = voice.includes('Neural');
+                
+                if (isMicrosoftVoice) {
+                    // 使用微软TTS生成语音
+                    const audioBlob = await microsoftTTS.textToSpeech(text, {
+                        voice: voice,
+                        speed: speed,
+                        pitch: 1.0,
+                        volume: '+0%' // 使用默认音量
+                    });
+                    
+                    // 播放音频
+                    playAudio(audioBlob);
                 } else {
-                    utter.lang = 'zh-CN';
+                    // 使用浏览器语音合成
+                    fallbackToBrowserTTS(text, config);
                 }
+            } catch (error) {
+                console.error('微软TTS播放失败:', error);
+                // 如果微软TTS失败，回退到浏览器语音合成
+                fallbackToBrowserTTS(text, config);
             }
-            
-            // 立即播放新语音
-            window.speechSynthesis.speak(utter);
         }
     })();
     
@@ -562,11 +566,85 @@ function showSpeechBubble(text, clickedObject) {
         speechBubble.style.visibility = 'hidden';
         speechBubble.style.opacity = '0';
         // 停止语音
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            currentUtterance = null;
-        }
+        stopCurrentAudio();
     }, 3000);
+}
+
+// 播放音频的辅助函数
+function playAudio(audioBlob) {
+    // 停止当前播放的音频
+    stopCurrentAudio();
+    
+    // 创建新的音频对象
+    const audioUrl = URL.createObjectURL(audioBlob);
+    currentAudio = new Audio(audioUrl);
+    isPlayingAudio = true;
+    
+    // 音频播放完成后的清理
+    currentAudio.onended = () => {
+        stopCurrentAudio();
+    };
+    
+    // 音频播放错误处理
+    currentAudio.onerror = (error) => {
+        console.error('音频播放错误:', error);
+        stopCurrentAudio();
+    };
+    
+    // 开始播放
+    currentAudio.play().catch(error => {
+        console.error('音频播放失败:', error);
+        stopCurrentAudio();
+    });
+}
+
+// 停止当前音频播放
+function stopCurrentAudio() {
+    // 停止微软TTS音频
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        URL.revokeObjectURL(currentAudio.src);
+        currentAudio = null;
+    }
+    isPlayingAudio = false;
+    
+    // 停止浏览器语音合成
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+}
+
+// 回退到浏览器语音合成
+function fallbackToBrowserTTS(text, config) {
+    if (window.speechSynthesis) {
+        // 确保停止之前的语音
+        window.speechSynthesis.cancel();
+        
+        const utter = new window.SpeechSynthesisUtterance(text);
+        
+        // 语音类型
+        if(config.model.bubbleTTSVoice) {
+            const voices = window.speechSynthesis.getVoices();
+            const v = voices.find(v=>v.voiceURI===config.model.bubbleTTSVoice);
+            if(v) utter.voice = v;
+        }
+        // 语速
+        utter.rate = config.model.bubbleTTSRate || 1;
+        // 音量
+        utter.volume = config.model.bubbleTTSVolume || 1;
+        // 自动选择语言（如未指定语音类型）
+        if (!utter.voice) {
+            if (/[\u0000-\u007f]/.test(text) && !/[\u4e00-\u9fa5]/.test(text)) {
+                utter.lang = 'en-US';
+            } else {
+                utter.lang = 'zh-CN';
+            }
+        }
+        
+        // 立即播放新语音
+        window.speechSynthesis.speak(utter);
+    }
 }
 
 // 获取模型头部位置 - 改进版本
@@ -839,8 +917,8 @@ async function loadModelFromConfig() {
     const savedModelState = config.modelState;
     config.model = {
       allowBubble: true,
-      bubbleTTS: false,
-      bubbleTTSVoice: "",
+      bubbleTTS: true,
+      bubbleTTSVoice: "zh-CN-XiaoxiaoNeural",
       bubbleTTSRate: 1.0,
       bubbleTTSVolume: 1.0,
       partTips: [
