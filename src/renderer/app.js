@@ -659,26 +659,34 @@ function setVrmExpressionSmooth(expressionArray) {
 async function onMouseClick(event) {
     // 只响应左键
     if (event.button !== 0) return;
-    // 判断是否允许弹出气泡
-    const config = await getConfig();
-    if (!config?.model?.allowBubble) {
-        return;
-    }
+    
+    // 检查是否固定状态
     if (isFixed) {
         return;
     }
+    
     if (!vrm || !vrm.scene) {
         return;
     }
+    
+    // 获取配置并检查是否允许气泡
+    const config = await getConfig();
+    if (config?.model?.allowBubble === false) {
+        return;
+    }
+    
     // 阻止事件冒泡，避免与OrbitControls冲突
     event.preventDefault();
     event.stopPropagation();
+    
     // 计算鼠标位置
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
     // 射线检测
     raycaster.setFromCamera(mouse, camera);
+    
     // 获取所有可点击的对象
     const objects = [];
     vrm.scene.traverse((child) => {
@@ -686,16 +694,20 @@ async function onMouseClick(event) {
             objects.push(child);
         }
     });
+    
     const intersects = raycaster.intersectObjects(objects, true);
     if (intersects.length > 0) {
         const intersect = intersects[0];
         const clickedObject = intersect.object;
         const worldPosition = intersect.point;
         const partName = boneClickSystem.detectClickedPart(worldPosition);
+        
         if (partName) {
             // 1. 平滑切换表情（支持多个表情混合）
             const expressionArray = partToExpression[partName];
-            setVrmExpressionSmooth(expressionArray);
+            if (expressionArray) {
+                setVrmExpressionSmooth(expressionArray);
+            }
 
             // 2. 显示气泡
             const tipText = getPartTip(partName);
@@ -813,6 +825,29 @@ async function loadModelFromConfig() {
   const config = await getConfig();
   if (!config) return;
 
+  // 确保配置包含必要的模型设置
+  if (!config.model) {
+    config.model = {
+      allowBubble: true,
+      bubbleTTS: false,
+      bubbleTTSVoice: "",
+      bubbleTTSRate: 1.0,
+      bubbleTTSVolume: 1.0,
+      partTips: [
+        { name: "head", tip: "摸摸头~" },
+        { name: "chest", tip: "不要乱摸啦！" },
+        { name: "belly", tip: "好痒啊~" },
+        { name: "hips", tip: "讨厌~" },
+        { name: "arms", tip: "手臂很结实呢~" },
+        { name: "legs", tip: "腿有点酸呢~" }
+      ]
+    };
+    // 保存修复后的配置
+    if (window.electronAPI && window.electronAPI.setConfig) {
+      window.electronAPI.setConfig(config);
+    }
+  }
+
   applySceneSettings(config);
   
   if (config.modelPath && config.modelPath !== currentModelPath) {
@@ -913,13 +948,36 @@ function loadVRMModel(modelPath, onLoadCallback) {
       // 初始化骨骼点击检测系统
       boneClickSystem.init(vrm);
       
+      // 确保在模型加载完成后立即保存当前状态
+      setTimeout(() => {
+        const currentState = {
+          scale: vrm.scene.scale.x,
+          cameraPosition: camera.position.toArray(),
+          cameraTarget: controls.target.toArray(),
+          cameraFov: camera.fov,
+          isFixed: isFixed
+        };
+        saveModelState(currentState);
+      }, 100);
+      
       if (onLoadCallback) {
         onLoadCallback();
       }
     },
+    (progress) => {
+      // 可以在这里添加加载进度显示
+      console.log('模型加载进度:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
+    },
     (error) => {
-      alert('模型加载失败！');
-      console.error('加载失败:', error);
+      console.error('模型加载失败:', error);
+      // 使用更友好的错误提示，而不是弹框
+      showSpeechBubble('模型加载失败，请检查文件路径是否正确', null);
+      
+      // 尝试加载默认模型
+      if (modelPath !== '../../assets/default.vrm') {
+        console.log('尝试加载默认模型...');
+        loadVRMModel('../../assets/default.vrm', onLoadCallback);
+      }
     }
   );
 }
