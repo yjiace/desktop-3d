@@ -32,9 +32,12 @@ canvas {
     width: 100%;
     height: 100%;
     z-index: 0;
-    /* 防止画布也响应拖动事件 */
     -webkit-app-region: no-drag;
-    cursor: pointer; /* 添加指针样式，提示可点击 */
+    cursor: pointer;
+}
+
+#character-container.fixed canvas {
+    cursor: default;
 }
 
 #speech-bubble {
@@ -48,16 +51,15 @@ canvas {
     color: #333;
     max-width: 250px;
     text-align: center;
-    visibility: hidden; /* 默认隐藏 */
+    visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
-    -webkit-app-region: no-drag; /* 气泡不可拖动 */
+    -webkit-app-region: no-drag;
     z-index: 1000;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     word-wrap: break-word;
     line-height: 1.4;
-    /* 允许超出窗口 */
     overflow: visible;
 }
 
@@ -67,7 +69,6 @@ canvas {
     transform: translateY(-5px);
 }
 
-/* 气泡的小三角 */
 #speech-bubble::after {
     content: '';
     position: absolute;
@@ -75,9 +76,7 @@ canvas {
     border-style: solid;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     transition: all 0.2s;
-    /* 默认朝下 */
     bottom: -8px;
-    top: auto;
     border-width: 8px 8px 0 8px;
     border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent;
     transform: translateX(-50%);
@@ -91,77 +90,91 @@ canvas {
     transform: translateX(-50%) rotate(180deg) !important;
 }
 
-/* 固定图标样式 */
-#drag-button, #drag-button svg {
-    -webkit-app-region: drag;
-    cursor: grab;
-}
-#pin-button, #pin-button *, #pin-button svg {
-    -webkit-app-region: no-drag;
-}
-#character-container.fixed #drag-button, #character-container.fixed #drag-button svg {
-    -webkit-app-region: no-drag;
-    cursor: not-allowed;
-}
-#pin-button {
-    opacity: 0.25;
-    background: none;
-    border: none;
-    color: rgba(80,80,80,0.25);
-    transition: color 0.3s, opacity 0.3s;
+/* 通用按钮样式 */
+#drag-button, #pin-button, #topmost-button {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin: 0;
     padding: 0;
+    background: none;
+    border: none;
+    outline: none;
+    color: rgba(80,80,80,0.25);
+    opacity: 0.25;
+    transition: color 0.3s, opacity 0.3s, filter 0.3s;
     box-shadow: none;
+    cursor: pointer;
+    filter: grayscale(1);
 }
-#drag-button .icon-svg, #pin-button .icon-svg {
+
+#drag-button:hover, #pin-button:hover, #topmost-button:hover,
+#character-container:hover #drag-button,
+#character-container:hover #pin-button,
+#character-container:hover #topmost-button {
+    opacity: 0.85;
+    color: rgba(80,80,80,0.85);
+}
+
+#drag-button .icon-svg, #pin-button .icon-svg, #topmost-button .icon-svg {
     width: 22px;
     height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-#drag-button:hover, #pin-button:hover,
-#character-container:hover #drag-button,
-#character-container:hover #pin-button {
-    opacity: 0.85;
-    color: rgba(80,80,80,0.85);
+
+#drag-button svg, #pin-button svg, #topmost-button svg {
+    stroke: currentColor;
+    fill: currentColor;
 }
-#drag-button .icon-label, #pin-button .icon-label {
-    font-size: 10px;
-    color: rgba(80,80,80,0.25);
-    margin-top: 0px;
-    opacity: 0;
-    transition: opacity 0.2s, color 0.2s;
-    pointer-events: none;
+
+/* 拖动按钮特殊样式 */
+#drag-button, #drag-button svg {
+    -webkit-app-region: drag;
+    cursor: grab;
 }
-#drag-button:hover .icon-label, #pin-button:hover .icon-label,
-#character-container:hover #drag-button .icon-label,
-#character-container:hover #pin-button .icon-label {
-    opacity: 0.85;
-    color: rgba(80,80,80,0.85);
-}
-#pin-button.fixed {
-    color: rgba(180,40,40,0.4);
-    opacity: 0.25;
-    background: none;
-    border: none;
-}
-#pin-button.fixed:hover,
-#character-container:hover #pin-button.fixed {
-    color: rgba(180,40,40,0.85);
-    opacity: 0.85;
-    background: none;
-    border: none;
-}
-#character-container.fixed #drag-button {
-    cursor: not-allowed;
+
+#character-container.fixed #drag-button,
+#character-container.fixed #drag-button svg {
     -webkit-app-region: no-drag;
+    cursor: not-allowed;
     opacity: 0.25;
 }
 
+/* 固定按钮特殊样式 */
+#pin-button, #pin-button *, #pin-button svg {
+    -webkit-app-region: no-drag;
+}
+
+#pin-button.fixed,
+#pin-button.locked {
+    color: rgba(180,40,40,0.4);
+}
+
+#pin-button.fixed:hover,
+#pin-button.locked:hover,
+#character-container:hover #pin-button.fixed,
+#character-container:hover #pin-button.locked {
+    color: rgba(180,40,40,0.85);
+    opacity: 0.85;
+}
+
+/* 置顶按钮特殊样式 */
+#topmost-button:hover,
+#character-container:hover #topmost-button {
+    color: #4a90e2;
+}
+
+#topmost-button.active {
+    color: #4a90e2;
+    opacity: 1;
+    filter: grayscale(0);
+}
+
+/* 顶部图标容器 */
 #top-icons {
     position: absolute;
     top: 10px;
@@ -171,51 +184,8 @@ canvas {
     gap: 8px;
     z-index: 1001;
 }
-#top-icons button {
-    margin: 0;
-    background: none;
-    border: none;
-    opacity: 0.25;
-    color: rgba(80,80,80,0.25);
-    transition: color 0.3s, opacity 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-shadow: none;
-    cursor: pointer;
-}
-#top-icons button .icon-svg {
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-#top-icons button:hover,
-#character-container:hover #top-icons button {
-    opacity: 0.85;
-    color: rgba(80,80,80,0.85);
-}
-#pin-button.locked {
-    color: rgba(180,40,40,0.4);
-    opacity: 0.25;
-}
-#pin-button.locked:hover,
-#character-container:hover #pin-button.locked {
-    color: rgba(180,40,40,0.85);
-    opacity: 0.85;
-}
-#character-container.fixed #drag-button {
-    cursor: not-allowed;
-    -webkit-app-region: no-drag;
-    opacity: 0.25;
-}
-#drag-button svg, #pin-button svg, #topmost-button svg {
-    stroke: currentColor;
-    fill: currentColor;
-}
 
+/* 菜单栏 */
 #menu-bar {
     width: 100%;
     height: 40px;
@@ -244,39 +214,7 @@ canvas {
     pointer-events: auto;
 }
 
-#drag-button, #pin-button, #topmost-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    margin: 0;
-    padding: 0;
-    background: none;
-    border: none;
-    outline: none;
-    color: #8a8a8a;
-    opacity: 1;
-    transition: color 0.3s, opacity 0.3s, filter 0.3s;
-    box-shadow: none;
-    cursor: pointer;
-    filter: grayscale(1);
-}
-#drag-button.active,
-#pin-button.locked,
-#topmost-button.active {
-    color: #d81e06;
-    opacity: 1;
-    filter: grayscale(0);
-}
-#drag-button .icon-svg, #pin-button .icon-svg, #topmost-button .icon-svg {
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
+/* 查看器 */
 #viewer {
     position: absolute;
     top: 40px;
@@ -295,40 +233,4 @@ canvas {
     left: 0;
     z-index: 0;
     -webkit-app-region: no-drag;
-}
-
-/* 当模型被固定时，禁用点击交互 */
-#character-container.fixed canvas {
-    cursor: default;
-}
-
-#topmost-button {
-    background: none;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    opacity: 0.25;
-    color: rgba(80,80,80,0.25);
-    transition: color 0.3s, opacity 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-shadow: none;
-}
-#topmost-button .icon-svg {
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-#topmost-button:hover,
-#character-container:hover #topmost-button {
-    opacity: 0.85;
-    color: #4a90e2;
-}
-#topmost-button.active {
-    color: #4a90e2;
-    opacity: 1;
 } 

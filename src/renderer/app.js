@@ -14,7 +14,6 @@ let lastSavedState = null; // 记录上次保存的状态
 // --- TTS相关全局变量 ---
 let microsoftTTS = new MicrosoftTTS();
 let currentAudio = null; // 当前播放的音频对象
-let isPlayingAudio = false; // 是否正在播放音频
 
 // --- 部位提示配置 ---
 let partTips = {
@@ -74,20 +73,24 @@ let boneClickSystem = {
             offsetY: 0
         }
     },
+    // 初始化骨骼检测系统（目前无可视化标记）
     init(vrm) {
-        // 不再生成任何可视化标记
-        if (!vrm || !vrm.humanoid) {
-            return;
-        }
+        if (!vrm || !vrm.humanoid) return;
     },
-    // 检测点击的部位 - 优化版本
+    // 通用检测区域辅助函数
+    _inBox(worldPosition, center, size) {
+        return (
+            Math.abs(worldPosition.x - center.x) <= size.x / 2 &&
+            Math.abs(worldPosition.y - center.y) <= size.y / 2 &&
+            Math.abs(worldPosition.z - center.z) <= size.z / 2
+        );
+    },
+    // 检测点击的部位（优化：抽象重复区域检测）
     detectClickedPart(worldPosition) {
         if (!vrm || !vrm.humanoid) return null;
         // 锁骨/脖子空间优先排除
         const excludeBones = [
-            'neck',
-            'leftShoulder', 'rightShoulder',
-            'leftCollarbone', 'rightCollarbone'
+            'neck', 'leftShoulder', 'rightShoulder', 'leftCollarbone', 'rightCollarbone'
         ];
         for (const boneName of excludeBones) {
             const boneNode = vrm.humanoid.getRawBoneNode(boneName);
@@ -101,139 +104,27 @@ let boneClickSystem = {
                 }
             }
         }
-
-        // -----------胸部自适应检测区域（仅胸部事件）-----------
-        // 常见左右胸骨骼名
-        const leftChestNames = ['leftUpperChest', 'leftBust', 'LeftBust', 'leftChest', 'LeftChest'];
-        const rightChestNames = ['rightUpperChest', 'rightBust', 'RightBust', 'rightChest', 'RightChest'];
-        let leftChestNode = null, rightChestNode = null;
-        for (const name of leftChestNames) {
-            leftChestNode = vrm.humanoid.getRawBoneNode(name);
-            if (leftChestNode) break;
-        }
-        for (const name of rightChestNames) {
-            rightChestNode = vrm.humanoid.getRawBoneNode(name);
-            if (rightChestNode) break;
-        }
-        const chestRadius = 0.12 * (vrm.scene.scale.x || 1); // 可调
-        const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 上移量，可调
-        if (leftChestNode && rightChestNode) {
-            // 两个圆形胸部检测区
-            const leftPos = new THREE.Vector3();
-            const rightPos = new THREE.Vector3();
-            leftChestNode.getWorldPosition(leftPos);
-            rightChestNode.getWorldPosition(rightPos);
-            leftPos.y += chestYOffset;
-            rightPos.y += chestYOffset;
-            if (worldPosition.distanceTo(leftPos) <= chestRadius || worldPosition.distanceTo(rightPos) <= chestRadius) {
-                return 'chest';
-            }
-        } else {
-            // 退化为chest中心的长方体区域
-            const chestNode = vrm.humanoid.getRawBoneNode('chest');
-            if (chestNode) {
-                const chestPos = new THREE.Vector3();
-                chestNode.getWorldPosition(chestPos);
-                chestPos.y += chestYOffset;
-                // 长方体参数
-                const width = 0.28 * (vrm.scene.scale.x || 1); // 左右宽度
-                const height = 0.18 * (vrm.scene.scale.x || 1); // 上下高度
-                const depth = 0.18 * (vrm.scene.scale.x || 1); // 前后厚度
-                if (
-                    Math.abs(worldPosition.x - chestPos.x) <= width / 2 &&
-                    Math.abs(worldPosition.y - chestPos.y) <= height / 2 &&
-                    Math.abs(worldPosition.z - chestPos.z) <= depth / 2
-                ) {
-                    return 'chest';
-                }
-            }
-        }
-        // -----------胸部自适应检测区域结束-----------
-
-        // -----------腹部自适应检测区域（仅腹部事件）-----------
-        // 仅当未命中胸部事件时再检测腹部
-        // 以chest骨骼为基准，腹部区域紧挨胸部下方
-        const chestNodeForBelly = vrm.humanoid.getRawBoneNode('chest');
-        if (chestNodeForBelly) {
+        // 检测胸部、腹部、臀部、腿部区域
+        const chestNode = vrm.humanoid.getRawBoneNode('chest');
+        if (chestNode) {
+            const scale = vrm.scene.scale.x || 1;
             const chestPos = new THREE.Vector3();
-            chestNodeForBelly.getWorldPosition(chestPos);
-            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
-            chestPos.y += chestYOffset; // 胸部上移量
-            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
-            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
-            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
-            // 腹部参数
-            const bellyHeight = 0.06 * (vrm.scene.scale.x || 1); // 腹部高度
-            const bellyWidth = chestWidth;
-            const bellyDepth = chestDepth;
-            // 腹部中心y = 胸部中心y - (胸部高度/2) - (腹部高度/2)
-            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
-            if (
-                Math.abs(worldPosition.x - chestPos.x) <= bellyWidth / 2 &&
-                Math.abs(worldPosition.y - bellyCenterY) <= bellyHeight / 2 &&
-                Math.abs(worldPosition.z - chestPos.z) <= bellyDepth / 2
-            ) {
-                return 'belly';
-            }
-        }
-        // -----------腹部自适应检测区域结束-----------
-
-        // -----------臀部自适应检测区域（仅臀部事件）-----------
-        // 仅当未命中腹部事件时再检测臀部
-        // 以chest骨骼为基准，臀部区域紧挨腹部下方
-        if (chestNodeForBelly) {
-            const chestPos = new THREE.Vector3();
-            chestNodeForBelly.getWorldPosition(chestPos);
-            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
-            chestPos.y += chestYOffset; // 胸部上移量
-            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
-            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
-            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
-            // 腹部参数
-            const bellyHeight = 0.14 * (vrm.scene.scale.x || 1); // 腹部高度
-            // 臀部参数
-            const hipsHeight = 0.13 * (vrm.scene.scale.x || 1); // 臀部高度（下边界上移，区域更窄）
-            const hipsWidth = chestWidth;
-            const hipsDepth = chestDepth;
-            // 臀部中心y = 腹部中心y - (腹部高度/2) - (臀部高度/2)
-            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
+            chestNode.getWorldPosition(chestPos);
+            chestPos.y += 0.05 * scale; // 上移
+            // 检查胸部
+            const chestSize = new THREE.Vector3(0.28 * scale, 0.18 * scale, 0.18 * scale);
+            if (this._inBox(worldPosition, chestPos, chestSize)) return 'chest';
+            // 检查腹部
+            const bellyHeight = 0.06 * scale;
+            const bellyCenterY = chestPos.y - (chestSize.y / 2) - (bellyHeight / 2);
+            if (this._inBox(worldPosition, new THREE.Vector3(chestPos.x, bellyCenterY, chestPos.z), new THREE.Vector3(chestSize.x, bellyHeight, chestSize.z))) return 'belly';
+            // 检查臀部
+            const hipsHeight = 0.13 * scale;
             const hipsCenterY = bellyCenterY - (bellyHeight / 2) - (hipsHeight / 2);
-            if (
-                Math.abs(worldPosition.x - chestPos.x) <= hipsWidth / 2 &&
-                Math.abs(worldPosition.y - hipsCenterY) <= hipsHeight / 2 &&
-                Math.abs(worldPosition.z - chestPos.z) <= hipsDepth / 2
-            ) {
-                return 'hips';
-            }
-        }
-        // -----------臀部自适应检测区域结束-----------
-
-        // -----------腿部自适应检测区域（仅腿部事件）-----------
-        // 仅当未命中臀部事件时再检测腿部
-        // 以chest骨骼为基准，腿部区域从臀部下边界到脚部
-        if (chestNodeForBelly) {
-            const chestPos = new THREE.Vector3();
-            chestNodeForBelly.getWorldPosition(chestPos);
-            const chestYOffset = 0.05 * (vrm.scene.scale.x || 1); // 与胸部事件一致
-            chestPos.y += chestYOffset; // 胸部上移量
-            const chestHeight = 0.18 * (vrm.scene.scale.x || 1); // 胸部高度
-            const chestWidth = 0.28 * (vrm.scene.scale.x || 1); // 胸部宽度
-            const chestDepth = 0.18 * (vrm.scene.scale.x || 1); // 胸部深度
-            // 腹部参数
-            const bellyHeight = 0.14 * (vrm.scene.scale.x || 1); // 腹部高度
-            // 臀部参数
-            const hipsHeight = 0.13 * (vrm.scene.scale.x || 1); // 臀部高度
-            // 腿部参数
-            const legsWidth = chestWidth * 0.7; // 腿部略窄
-            const legsDepth = chestDepth;
-            // 计算腿部y范围
-            const bellyCenterY = chestPos.y - (chestHeight / 2) - (bellyHeight / 2);
-            const hipsCenterY = bellyCenterY - (bellyHeight / 2) - (hipsHeight / 2);
-            const hipsBottomY = hipsCenterY - (hipsHeight / 2); // 臀部下边界
-            // 获取脚部最低点
+            if (this._inBox(worldPosition, new THREE.Vector3(chestPos.x, hipsCenterY, chestPos.z), new THREE.Vector3(chestSize.x, hipsHeight, chestSize.z))) return 'hips';
+            // 检查腿部
             let minFootY = null;
-            const footBones = ['leftFoot', 'rightFoot'];
-            footBones.forEach(boneName => {
+            ['leftFoot', 'rightFoot'].forEach(boneName => {
                 const boneNode = vrm.humanoid.getRawBoneNode(boneName);
                 if (boneNode) {
                     const pos = new THREE.Vector3();
@@ -242,27 +133,19 @@ let boneClickSystem = {
                 }
             });
             if (minFootY !== null) {
-                // 腿部中心y = (臀部下边界 + 脚底) / 2
+                const hipsBottomY = hipsCenterY - (hipsHeight / 2);
                 const legsCenterY = (hipsBottomY + minFootY) / 2;
                 const legsHeight = Math.abs(hipsBottomY - minFootY);
-                if (
-                    Math.abs(worldPosition.x - chestPos.x) <= legsWidth / 2 &&
-                    Math.abs(worldPosition.y - legsCenterY) <= legsHeight / 2 &&
-                    Math.abs(worldPosition.z - chestPos.z) <= legsDepth / 2
-                ) {
-                    return 'legs';
-                }
+                const legsWidth = chestSize.x * 0.7;
+                if (this._inBox(worldPosition, new THREE.Vector3(chestPos.x, legsCenterY, chestPos.z), new THREE.Vector3(legsWidth, legsHeight, chestSize.z))) return 'legs';
             }
         }
-        // -----------腿部自适应检测区域结束-----------
-
+        // 其它部位（头、手臂）
         let closestRegion = null;
         let closestDistance = Infinity;
         let closestBone = null;
-        
         Object.entries(this.boneRegions).forEach(([regionName, region]) => {
-            // 跳过chest区域，已自适应处理
-            if(regionName === 'chest') return;
+            if(regionName === 'chest') return; // 已处理
             region.bones.forEach(boneName => {
                 const boneNode = vrm.humanoid.getRawBoneNode(boneName);
                 if (boneNode) {
@@ -578,7 +461,6 @@ function playAudio(audioBlob) {
     // 创建新的音频对象
     const audioUrl = URL.createObjectURL(audioBlob);
     currentAudio = new Audio(audioUrl);
-    isPlayingAudio = true;
     
     // 音频播放完成后的清理
     currentAudio.onended = () => {
@@ -607,7 +489,6 @@ function stopCurrentAudio() {
         URL.revokeObjectURL(currentAudio.src);
         currentAudio = null;
     }
-    isPlayingAudio = false;
     
     // 停止浏览器语音合成
     if (window.speechSynthesis) {
@@ -803,15 +684,6 @@ async function onMouseClick(event) {
             }
         }
     }
-}
-
-// 获取模型高度
-function getModelHeight() {
-    if (!vrm || !vrm.scene) return 1;
-    
-    const box = new THREE.Box3().setFromObject(vrm.scene);
-    const size = box.getSize(new THREE.Vector3());
-    return size.y;
 }
 
 // 获取部位提示文本
