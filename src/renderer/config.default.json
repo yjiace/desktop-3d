@@ -14,33 +14,7 @@
     "bubbleTTS": true,
     "bubbleTTSVoice": "zh-CN-XiaoxiaoNeural",
     "bubbleTTSRate": 1.0,
-    "bubbleTTSVolume": 1.0,
-    "partTips": [
-      {
-        "name": "head",
-        "tip": "摸摸头~"
-      },
-      {
-        "name": "chest",
-        "tip": "不要乱摸啦！"
-      },
-      {
-        "name": "belly",
-        "tip": "好痒啊~"
-      },
-      {
-        "name": "hips",
-        "tip": "讨厌~"
-      },
-      {
-        "name": "arms",
-        "tip": "手臂很结实呢~"
-      },
-      {
-        "name": "legs",
-        "tip": "腿有点酸呢~"
-      }
-    ]
+    "bubbleTTSVolume": 1.0
   },
   "modelState": {
     "scale": 1.0,

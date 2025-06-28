@@ -15,11 +15,11 @@
     { "name": "默认舞台", "path": "../../assets/default-stage.glb" }
   ],
   "partTips": [
-    { "name": "head", "tip": "头部", "content": "头部" },
-    { "name": "arms", "tip": "手臂", "content": "手臂" },
-    { "name": "legs", "tip": "腿部", "content": "腿部" },
-    { "name": "chest", "tip": "胸部", "content": "胸部" },
-    { "name": "belly", "tip": "腹部", "content": "腹部" },
-    { "name": "hips", "tip": "臀部", "content": "臀部" }
+    { "name": "head", "tip": "头部", "content": "摸摸头~" },
+    { "name": "arms", "tip": "手臂", "content": "手臂很结实呢~" },
+    { "name": "legs", "tip": "腿部", "content": "腿有点酸呢~" },
+    { "name": "chest", "tip": "胸部", "content": "不要乱摸啦！" },
+    { "name": "belly", "tip": "腹部", "content": "好痒啊~" },
+    { "name": "hips", "tip": "臀部", "content": "讨厌~" }
   ]
 } 

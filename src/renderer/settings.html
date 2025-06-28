@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>设置</title>
     <style>
+        /* 页面基础布局与背景 */
         html, body {
             width: 100%; height: 100%; margin: 0; padding: 0; background: #f6f7fb;
         }
@@ -12,14 +13,15 @@
             color: #222;
             overflow: hidden;
         }
+        /* 主体容器 */
         .settings-root {
             width: 100vw; height: 100vh;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             background: #fff;
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.12);
         }
+        /* 顶部栏 */
         .settings-header {
             height: 60px;
             background: #f6f7fb;
@@ -37,13 +39,10 @@
             color: #222;
         }
         .settings-header .close-btn {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             background: rgba(180,180,180,0.08);
-            border: none;
-            border-radius: 50%;
-            color: #888;
-            font-size: 18px;
+            border: none; border-radius: 50%;
+            color: #888; font-size: 18px;
             cursor: pointer;
             transition: background 0.2s, color 0.2s;
             -webkit-app-region: no-drag;
@@ -52,6 +51,7 @@
             background: rgba(180,180,180,0.18);
             color: #222;
         }
+        /* 主体分栏 */
         .settings-body {
             flex: 1;
             display: flex;
@@ -94,6 +94,7 @@
             font-weight: 600;
             margin-bottom: 24px;
         }
+        /* 表单通用样式 */
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; font-size: 15px; color: #444; }
         select, input[type="text"], input[type="file"], textarea { 
@@ -109,14 +110,13 @@
             border-color: #4a90e2;
             box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
         }
+        /* 模型选择器 */
         .model-selector {
             display: flex;
             gap: 8px;
             align-items: flex-end;
         }
-        .model-selector select {
-            flex: 1;
-        }
+        .model-selector select { flex: 1; }
         .model-selector button {
             padding: 7px 12px;
             border: none;
@@ -127,134 +127,62 @@
             font-size: 14px;
             transition: background 0.2s;
         }
-        .model-selector button:hover {
-            background: #357abd;
-        }
+        .model-selector button:hover { background: #357abd; }
+        /* 部位列表 */
         .part-list { margin: 0; padding: 0; list-style: none; }
         .part-list li { 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 8px; 
-            padding: 8px;
-            background: #f8f9fa;
-            border-radius: 4px;
+            display: flex; align-items: center; margin-bottom: 8px; padding: 8px;
+            background: #f8f9fa; border-radius: 4px;
         }
         .part-list input[type="text"] { flex: 1; margin-right: 8px; }
-        .part-list .part-name { width: 120px; }
-        .part-list .part-tip { flex: 1; }
         .add-part-btn { 
-            margin-top: 8px; 
-            padding: 8px 16px; 
-            border: none; 
-            border-radius: 5px; 
-            background: #e3e7f0; 
-            color: #333; 
-            cursor: pointer; 
-            font-size: 14px;
+            margin-top: 8px; padding: 8px 16px; border: none; border-radius: 5px; 
+            background: #e3e7f0; color: #333; cursor: pointer; font-size: 14px;
             transition: background 0.2s;
         }
         .add-part-btn:hover { background: #d0d6e1; }
         .remove-part-btn { 
-            background: none; 
-            border: none; 
-            color: #c00; 
-            font-size: 18px; 
-            cursor: pointer; 
-            margin-left: 4px;
-            padding: 4px;
-            border-radius: 3px;
-            transition: background 0.2s;
+            background: none; border: none; color: #c00; font-size: 18px; cursor: pointer; 
+            margin-left: 4px; padding: 4px; border-radius: 3px; transition: background 0.2s;
         }
-        .remove-part-btn:hover {
-            background: rgba(204, 0, 0, 0.1);
-        }
+        .remove-part-btn:hover { background: rgba(204, 0, 0, 0.1); }
+        /* 内置部位提示 */
         .builtin-parts {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #f0f7ff;
-            border-radius: 6px;
-            border-left: 4px solid #4a90e2;
+            margin-bottom: 16px; padding: 12px; background: #f0f7ff;
+            border-radius: 6px; border-left: 4px solid #4a90e2;
         }
-        .builtin-parts h4 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
-            color: #4a90e2;
-        }
-        .builtin-parts .part-list li {
-            background: white;
-            margin-bottom: 4px;
-        }
-        .custom-parts {
-            margin-top: 16px;
-        }
-        .custom-parts h4 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
-            color: #666;
-        }
-        .btn-danger {
-            background: #f5eaea !important;
-            color: #c00 !important;
-        }
-        .btn-danger:hover {
-            background: #f0e0e0 !important;
-        }
+        .builtin-parts h4 { margin: 0 0 8px 0; font-size: 14px; color: #4a90e2; }
+        .builtin-parts .part-list li { background: white; margin-bottom: 4px; }
+        /* 自定义部位 */
+        .custom-parts { margin-top: 16px; }
+        .custom-parts h4 { margin: 0 0 8px 0; font-size: 14px; color: #666; }
+        /* 危险按钮 */
+        .btn-danger { background: #f5eaea !important; color: #c00 !important; }
+        .btn-danger:hover { background: #f0e0e0 !important; }
+        /* 开关样式 */
         .switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-            vertical-align: middle;
+            position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle;
         }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .3s;
-            border-radius: 24px;
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .3s; border-radius: 24px;
         }
         .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .3s;
-            border-radius: 50%;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
-        .switch input:checked + .slider {
-            background-color: #4a90e2;
-        }
-        .switch input:checked + .slider:before {
-            transform: translateX(20px);
-        }
+        .switch input:checked + .slider { background-color: #4a90e2; }
+        .switch input:checked + .slider:before { transform: translateX(20px); }
+        /* 设置卡片 */
         .setting-card {
-            background: #fafdff;
-            border: 1.5px solid #e3e7f0;
-            border-radius: 8px;
-            padding: 18px 20px 10px 20px;
-            margin-bottom: 24px;
+            background: #fafdff; border: 1.5px solid #e3e7f0; border-radius: 8px;
+            padding: 18px 20px 10px 20px; margin-bottom: 24px;
             box-shadow: 0 2px 8px rgba(74,144,226,0.04);
         }
         .setting-card .setting-title {
-            font-size: 15px;
-            color: #4a90e2;
-            font-weight: 600;
-            margin-bottom: 12px;
-            border-bottom: 1px solid #e3e7f0;
-            padding-bottom: 6px;
-        }
-        .setting-card .form-group:last-child {
-            margin-bottom: 0;
+            font-size: 15px; color: #4a90e2; font-weight: 600;
+            margin-bottom: 12px; border-bottom: 1px solid #e3e7f0; padding-bottom: 6px;
         }
     </style>
 </head>
@@ -287,16 +215,18 @@
     </dialog>
     <script type="module">
         // --- 工具函数 ---
+        /**
+         * 防抖函数，避免频繁保存配置
+         */
         const debounce = (func, delay) => {
             let timeout;
             return function(...args) {
-                const context = this;
                 clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(context, args), delay);
+                timeout = setTimeout(() => func.apply(this, args), delay);
             };
         };
 
-        // --- DOM 引用 ---
+        // --- DOM 元素引用 ---
         const closeButton = document.getElementById('close-settings');
         const menuItems = document.querySelectorAll('.menu-item');
         const sectionContent = document.getElementById('settings-section-content');
@@ -311,28 +241,27 @@
         let builtinPartTips = [];
         let originalConfig = null;
 
+        // sectionMap 用于切换不同设置页面
         const sectionMap = {
             model: { title: '3D模型设置', render: renderModelSection },
             scene: { title: '3D场景设置', render: renderSceneSection },
         };
 
-        // --- 初始化和配置管理 ---
+        // --- 配置管理 ---
+        // 防抖保存配置
         const saveConfig = debounce(() => {
             window.electronAPI && window.electronAPI.setConfig(config);
         }, 300);
 
+        /**
+         * 加载配置和选项，初始化全局状态
+         */
         async function loadConfigAndOptions() {
             config = (await window.electronAPI.getConfig()) || {};
             originalConfig = JSON.parse(JSON.stringify(config));
-            
-            // 确保config.model对象存在
-            if (!config.model) {
-                config.model = {};
-            }
-            
-            // 从选项配置文件读取选项列表
+            if (!config.model) config.model = {};
+            // 读取选项
             const options = (await window.electronAPI.getOptions()) || {};
-            
             availableModels = options.models || [
                 { name: '默认模型', path: '../../assets/default.vrm' },
                 { name: 'FoxGirl', path: '../../assets/FoxGirl.vrm' },
@@ -361,36 +290,39 @@
                 { name: 'belly', tip: '腹部' },
                 { name: 'hips', tip: '臀部' }
             ];
-
-            // 加载自定义模型到可用模型列表
+            // 加载自定义模型
             if (config.model && config.model.customModels) {
                 availableModels = [
                     ...availableModels,
-                    ...config.model.customModels.map(model => ({
-                        name: model.name,
-                        path: model.path
-                    }))
+                    ...config.model.customModels.map(model => ({ name: model.name, path: model.path }))
                 ];
             }
-
             renderCurrentSection();
         }
 
+        /**
+         * 渲染当前选中设置页面
+         */
         function renderCurrentSection() {
             title.textContent = sectionMap[currentSection].title;
-            sectionContent.innerHTML = ''; // 清空内容
+            sectionContent.innerHTML = '';
             sectionMap[currentSection].render(sectionContent);
         }
 
-        // --- 事件监听 ---
+        // --- 事件监听与通用逻辑 ---
+        /**
+         * 关闭设置窗口，恢复未保存时的原始配置
+         */
         closeButton.onclick = () => {
-            // 恢复原始配置（未保存时）
             if (originalConfig) {
                 window.electronAPI.setConfig(originalConfig);
             }
             window.electronAPI && window.electronAPI.closeSettings();
         };
 
+        /**
+         * 菜单切换统一处理
+         */
         menuItems.forEach(item => {
             item.onclick = () => {
                 menuItems.forEach(i => i.classList.remove('active'));
@@ -399,37 +331,37 @@
                 renderCurrentSection();
             };
         });
-        
-        // 恢复默认配置
+
+        /**
+         * 恢复默认配置，刷新UI并同步到主窗口
+         */
         async function resetConfig() {
             if(confirm('确定要恢复所有默认设置吗？自定义上传的文件不会被删除。')){
                 await window.electronAPI.resetConfig();
                 config = (await window.electronAPI.getConfig()) || {};
                 originalConfig = JSON.parse(JSON.stringify(config));
-                renderCurrentSection(); // 刷新UI控件
-                // 主动同步到主窗口，确保3D状态实时变更
+                renderCurrentSection();
                 window.electronAPI.setConfig(config);
             }
         }
 
         // --- 渲染函数：模型设置 ---
+        /**
+         * 渲染3D模型设置页面
+         */
         function renderModelSection(container) {
-            const currentModel = availableModels.find(m => m.path === config.modelPath) || 
-                               { name: '自定义模型', path: config.modelPath };
-            
+            // 当前模型
+            const currentModel = availableModels.find(m => m.path === config.modelPath) || { name: '自定义模型', path: config.modelPath };
+            // 渲染主结构
             container.innerHTML = `
                 <div class="form-group">
                     <label>选择模型</label>
                     <div class="model-selector">
                         <select id="model-select">
                             ${availableModels.map(model => 
-                                `<option value="${model.path}" ${model.path === config.modelPath ? 'selected' : ''}>
-                                    ${model.name}
-                                </option>`
+                                `<option value="${model.path}" ${model.path === config.modelPath ? 'selected' : ''}>${model.name}</option>`
                             ).join('')}
-                            ${!availableModels.find(m => m.path === config.modelPath) && config.modelPath ? 
-                                `<option value="${config.modelPath}" selected>自定义模型</option>` : ''
-                            }
+                            ${!availableModels.find(m => m.path === config.modelPath) && config.modelPath ? `<option value="${config.modelPath}" selected>自定义模型</option>` : ''}
                         </select>
                         <button id="add-custom-model-btn">添加自定义模型</button>
                     </div>
@@ -478,14 +410,28 @@
                 </div>
             `;
 
-            // 渲染部位提示
+            // 渲染内置部位提示
             const builtinPartList = container.querySelector('#builtin-part-list');
             const customPartList = container.querySelector('#custom-part-list');
             let userTips = (config.model && config.model.partTips) ? config.model.partTips : [];
-            // 渲染内置部位
+            
+            // 如果 userTips 为空，自动初始化所有内置部位的默认提示
+            if (userTips.length === 0) {
+                if (!config.model) config.model = {};
+                if (!config.model.partTips) config.model.partTips = [];
+                builtinPartTips.forEach(part => {
+                    config.model.partTips.push({
+                        name: part.name,
+                        tip: part.content || ''
+                    });
+                });
+                userTips = config.model.partTips;
+            }
+            
+            // 内置部位输入渲染
             builtinPartTips.forEach((part, index) => {
                 let userTip = userTips.find(t => t.name === part.name);
-                let tipValue = userTip ? userTip.tip : (part.content || part.tip);
+                let tipValue = userTip ? userTip.tip : part.content; // 使用 content 作为默认值
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <span style="width:80px;display:inline-block;">${part.tip}</span>
@@ -509,6 +455,7 @@
                     saveConfig();
                 };
             });
+
             // 渲染自定义部位
             function renderCustomParts() {
                 customPartList.innerHTML = '';
@@ -531,7 +478,6 @@
                     `;
                     // 删除事件
                     li.querySelector('.remove-part-btn').onclick = () => {
-                        // 直接用原始数组索引删除，避免因事件名冲突无法删除
                         const allCustom = userTips.filter(t => !builtinPartTips.find(b => b.name === t.name));
                         const realIdx = userTips.indexOf(allCustom[idx]);
                         if(realIdx !== -1 && config.model && config.model.partTips) {
@@ -543,7 +489,6 @@
                     // 编辑事件名
                     li.querySelector('.custom-part-name').oninput = (e) => {
                         const newName = e.target.value.trim();
-                        // 检查是否与内置或其他自定义重复
                         let conflict = false;
                         if(newName) {
                             let count = 0;
@@ -554,14 +499,12 @@
                             e.target.style.border = '1.5px solid #e00';
                             e.target.style.background = '#fff0f0';
                             e.target.title = '事件名已存在，不能重复';
-                            // 不保存、不重渲染
                         } else {
                             e.target.style.border = '';
                             e.target.style.background = '';
                             e.target.title = '';
                             part.name = newName;
                             saveConfig();
-                            // 不重渲染，避免失焦
                         }
                     };
                     // 编辑中文名
@@ -601,7 +544,7 @@
             // 切换模型时临时生效
             container.querySelector('#model-select').onchange = (e) => {
                 config.modelPath = e.target.value;
-                window.electronAPI.setConfig(config); // 临时生效
+                window.electronAPI.setConfig(config);
             };
             container.querySelector('#reset-btn').onclick = resetConfig;
             container.querySelector('#save-model-section-btn').onclick = async () => {
@@ -634,17 +577,18 @@
                     alert('有重复事件名，请修改后再保存！');
                     return;
                 }
-                // 保存当前模型设置到数据库
+                // 确保 config.model.partTips 存在
+                if (!config.model) config.model = {};
+                if (!config.model.partTips) config.model.partTips = [];
+                // 只过滤掉完全空的条目（既没有name也没有tip）
+                config.model.partTips = config.model.partTips.filter(t => t.name || t.tip);
                 await window.electronAPI.setConfig(config);
-                // 更新原始配置
                 originalConfig = JSON.parse(JSON.stringify(config));
                 alert('模型设置已保存！');
-                // 主动同步到主窗口，确保3D状态实时变更
-                window.electronAPI.setConfig(config);
-                renderCurrentSection(); // 刷新UI控件
+                renderCurrentSection();
             };
 
-            // 新增：交互开关事件
+            // 交互开关事件
             container.querySelector('#allow-bubble-checkbox').onchange = (e) => {
                 if (!config.model) config.model = {};
                 config.model.allowBubble = e.target.checked;
@@ -653,8 +597,7 @@
                 if(ttsBox) ttsBox.disabled = !e.target.checked;
                 saveConfig();
             };
-
-            // 新增：语音播报开关事件
+            // 语音播报开关事件
             container.querySelector('#bubble-tts-checkbox').onchange = (e) => {
                 if (!config.model) config.model = {};
                 config.model.bubbleTTS = e.target.checked;
@@ -671,7 +614,6 @@
                 }
                 saveConfig();
             };
-
             // 语速、音量事件
             container.querySelector('#bubble-tts-rate').oninput = (e) => {
                 if (!config.model) config.model = {};
@@ -685,11 +627,10 @@
                 container.querySelector('#bubble-tts-volume-value').innerText = e.target.value;
                 saveConfig();
             };
-
             // 语音类型下拉
             const voiceSelect = container.querySelector('#bubble-tts-voice');
             function fillVoices() {
-                // 添加微软TTS语音选项
+                // 微软TTS语音选项
                 const microsoftVoices = {
                     'zh-CN-XiaoxiaoNeural': '晓晓 - 温暖活泼 (微软TTS)',
                     'zh-CN-XiaoyiNeural': '晓伊 - 温暖亲切 (微软TTS)',
@@ -713,33 +654,23 @@
                     'ko-KR-SunHiNeural': 'Sun-Hi - 韩文 (微软TTS)',
                     'ko-KR-InJoonNeural': 'InJoon - 韩文 (微软TTS)'
                 };
-                
                 let voiceOptions = [];
-                
-                // 添加微软TTS选项
                 Object.entries(microsoftVoices).forEach(([value, name]) => {
                     voiceOptions.push(`<option value="${value}" ${(config.model && config.model.bubbleTTSVoice)===value?'selected':''}>${name}</option>`);
                 });
-                
-                // 添加浏览器语音选项（如果有的话）
+                // 浏览器语音选项
                 if(window.speechSynthesis) {
                     const voices = window.speechSynthesis.getVoices();
                     voices.forEach(v => {
                         voiceOptions.push(`<option value="${v.voiceURI}" ${(config.model && config.model.bubbleTTSVoice)===v.voiceURI?'selected':''}>${v.name} (${v.lang}) - 浏览器语音</option>`);
                     });
                 }
-                
                 voiceSelect.innerHTML = voiceOptions.join('');
             }
-            
-            // 初始化语音选项
             fillVoices();
-            
-            // 如果浏览器语音合成可用，监听语音变化事件
             if(window.speechSynthesis) {
                 window.speechSynthesis.onvoiceschanged = fillVoices;
             }
-            
             voiceSelect.onchange = (e) => {
                 if (!config.model) config.model = {};
                 config.model.bubbleTTSVoice = e.target.value;
@@ -748,9 +679,11 @@
         }
 
         // --- 渲染函数：场景设置 ---
+        /**
+         * 渲染3D场景设置页面
+         */
         function renderSceneSection(container) {
             const isCustomStage = config.scene?.stagePath;
-
             container.innerHTML = `
                 <div class="form-group">
                     <label>舞台模型</label>
@@ -766,9 +699,7 @@
                         <label>内置舞台</label>
                         <select id="builtin-stage-select">
                             ${availableStages.map(stage => 
-                                `<option value="${stage.path}" ${config.scene?.stagePath === stage.path ? 'selected' : ''}>
-                                    ${stage.name}
-                                </option>`
+                                `<option value="${stage.path}" ${config.scene?.stagePath === stage.path ? 'selected' : ''}>${stage.name}</option>`
                             ).join('')}
                         </select>
                     </div>
@@ -806,39 +737,32 @@
             `;
 
             // --- 场景设置事件监听 ---
-            
-            // 封装一个函数用于更新配置并触发预览
-            const updateConfigAndPreview = () => {
-                window.electronAPI.setConfig(config);
-            };
-            
+            const updateConfigAndPreview = () => window.electronAPI.setConfig(config);
             // 内置舞台选择
             container.querySelector('#builtin-stage-select').onchange = (e) => {
                 if (!config.scene) config.scene = {};
                 config.scene.stagePath = e.target.value || undefined;
                 updateConfigAndPreview();
             };
-            
             // 舞台上传
             const stageUploadBtn = container.querySelector('#stage-upload-btn');
             const stageUploadInput = container.querySelector('#stage-upload-input');
             if (stageUploadBtn && stageUploadInput) {
                 stageUploadBtn.onclick = () => stageUploadInput.click();
                 stageUploadInput.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                try {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    try {
                         const newPath = await window.electronAPI.copyToAssets(file.path);
                         if (!config.scene) config.scene = {};
                         config.scene.stagePath = newPath;
                         updateConfigAndPreview();
-                        renderCurrentSection(); // 重新渲染以更新UI
-                } catch (error) {
+                        renderCurrentSection();
+                    } catch (error) {
                         alert(`舞台上传失败: ${error.message}`);
-                }
-            };
+                    }
+                };
             }
-
             // 移除舞台
             const removeStageBtn = container.querySelector('#remove-stage-btn');
             if (removeStageBtn) {
@@ -848,13 +772,11 @@
                     renderCurrentSection();
                 };
             }
-            
             // 动态选择
             container.querySelector('#scene-action-select').onchange = (e) => {
                 config.action = e.target.value;
                 updateConfigAndPreview();
             };
-
             // 背景色和透明
             container.querySelector('#scene-bgcolor').oninput = (e) => {
                 if (!config.appearance) config.appearance = {};
@@ -867,7 +789,6 @@
                 config.appearance.background = e.target.checked ? 'transparent' : container.querySelector('#scene-bgcolor').value;
                 updateConfigAndPreview();
             };
-
             // 灯光强度
             container.querySelector('#scene-light').oninput = (e) => {
                 if (!config.scene) config.scene = {};
@@ -875,18 +796,15 @@
                 container.querySelector('#scene-light-value').textContent = e.target.value;
                 updateConfigAndPreview();
             };
-
             // 保存按钮
             container.querySelector('#reset-btn').onclick = resetConfig;
             container.querySelector('#save-scene-section-btn').onclick = async () => {
                 await window.electronAPI.setConfig(config);
-                originalConfig = JSON.parse(JSON.stringify(config)); // 更新原始配置为已保存状态
+                originalConfig = JSON.parse(JSON.stringify(config));
                 alert('场景设置已保存！');
-                // 主动同步到主窗口，确保3D状态实时变更
                 window.electronAPI.setConfig(config);
-                renderCurrentSection(); // 刷新UI控件
+                renderCurrentSection();
             };
-
             // 动态显示当前模型支持的动画名
             if(window.electronAPI && window.electronAPI.getConfig){
                 window.electronAPI.getConfig().then(cfg=>{
@@ -897,12 +815,10 @@
                     }
                 });
             }
-
             // --- 自定义动作上传与管理 ---
             const customActionInput = container.querySelector('#custom-action-upload');
             const uploadCustomActionBtn = container.querySelector('#upload-custom-action-btn');
             const customActionList = container.querySelector('#custom-action-list');
-
             function renderCustomActionList() {
                 customActionList.innerHTML = '';
                 const actions = (config.model && config.model.customActions) || [];
@@ -924,7 +840,6 @@
                 });
             }
             renderCustomActionList();
-
             uploadCustomActionBtn.onclick = () => customActionInput.click();
             customActionInput.onchange = async (e) => {
                 const file = e.target.files[0];

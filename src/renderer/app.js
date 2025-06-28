@@ -10,21 +10,11 @@ let currentAction = 'idle';
 let randomAnimationInterval = null;
 let animationClips = [];
 let lastSavedState = null; // 记录上次保存的状态
+let globalConfig = null; // 全局配置变量
 
 // --- TTS相关全局变量 ---
 let microsoftTTS = new MicrosoftTTS();
 let currentAudio = null; // 当前播放的音频对象
-
-// --- 部位提示配置 ---
-let partTips = {
-    head: "头部",
-    arms: "手臂",
-    legs: "腿部",
-    chest: "胸部",
-    belly: "腹部",
-    hips: "臀部",
-    isFixed: false
-};
 
 // --- 骨骼点击检测系统 ---
 let boneClickSystem = {
@@ -671,6 +661,8 @@ async function onMouseClick(event) {
         const partName = boneClickSystem.detectClickedPart(worldPosition);
         
         if (partName) {
+            console.log('检测到部位点击:', partName);
+            
             // 1. 平滑切换表情（支持多个表情混合）
             const expressionArray = partToExpression[partName];
             if (expressionArray) {
@@ -678,21 +670,42 @@ async function onMouseClick(event) {
             }
 
             // 2. 显示气泡
-            const tipText = getPartTip(partName);
+            const tipText = await getPartTip(partName);
+            console.log('获取到的提示文本:', tipText);
             if (tipText) {
+                console.log('显示气泡:', tipText);
                 showSpeechBubble(tipText, clickedObject);
+            } else {
+                console.log('提示文本为空，不显示气泡');
             }
         }
     }
 }
 
 // 获取部位提示文本
-function getPartTip(partName) {
-    // 只检查自定义部位提示
-    if (partTips[partName]) {
-        return partTips[partName];
+async function getPartTip(partName) {
+    // 只读取 config.model.partTips
+    if (globalConfig && globalConfig.model && Array.isArray(globalConfig.model.partTips)) {
+        const partTip = globalConfig.model.partTips.find(p => p.name === partName);
+        if (partTip && partTip.tip) {
+            return partTip.tip;
+        }
     }
-    // 没有事件或没有对应响应时，不展示任何内容
+    
+    // 如果 config.model.partTips 为空，尝试从 options 中读取默认提示
+    try {
+        const options = await window.electronAPI.getOptions();
+        if (options && options.partTips) {
+            const defaultPart = options.partTips.find(p => p.name === partName);
+            if (defaultPart && defaultPart.content) {
+                return defaultPart.content;
+            }
+        }
+    } catch (error) {
+        console.error('读取 options 失败:', error);
+    }
+    
+    // 没有自定义提示内容时，不显示任何内容
     return '';
 }
 
@@ -700,15 +713,11 @@ function getPartTip(partName) {
 async function loadPartTips() {
     try {
         const config = await getConfig();
-        if (config && config.model && config.model.partTips) {
-            // 合并自定义部位提示
-            config.model.partTips.forEach(part => {
-                if (part.name && part.tip) {
-                    partTips[part.name] = part.tip;
-                }
-            });
+        if (config) {
+            globalConfig = config; // 更新全局配置
         }
     } catch (error) {
+        console.error('加载部位提示配置失败:', error);
     }
 }
 
@@ -783,6 +792,9 @@ async function loadModelFromConfig() {
   const config = await getConfig();
   if (!config) return;
 
+  // 更新全局配置
+  globalConfig = config;
+
   // 确保配置包含必要的模型设置
   if (!config.model) {
     // 保存当前的modelState（如果存在）
@@ -792,15 +804,7 @@ async function loadModelFromConfig() {
       bubbleTTS: true,
       bubbleTTSVoice: "zh-CN-XiaoxiaoNeural",
       bubbleTTSRate: 1.0,
-      bubbleTTSVolume: 1.0,
-      partTips: [
-        { name: "head", tip: "摸摸头~" },
-        { name: "chest", tip: "不要乱摸啦！" },
-        { name: "belly", tip: "好痒啊~" },
-        { name: "hips", tip: "讨厌~" },
-        { name: "arms", tip: "手臂很结实呢~" },
-        { name: "legs", tip: "腿有点酸呢~" }
-      ]
+      bubbleTTSVolume: 1.0
     };
     // 恢复保存的modelState
     if (savedModelState) {
@@ -810,6 +814,8 @@ async function loadModelFromConfig() {
     if (window.electronAPI && window.electronAPI.setConfig) {
       window.electronAPI.setConfig(config);
     }
+    // 更新全局配置
+    globalConfig = config;
   }
 
   applySceneSettings(config);
@@ -950,6 +956,12 @@ loadModelFromConfig();
 // --- 监听配置变更，实时切换模型 ---
 if (window.electronAPI && window.electronAPI.onConfigUpdated) {
   window.electronAPI.onConfigUpdated((config) => {
+    console.log('配置更新事件触发:', config);
+    
+    // 更新全局配置
+    globalConfig = config;
+    console.log('更新后的 globalConfig:', globalConfig);
+    
     applySceneSettings(config);
 
     if (config.modelPath && config.modelPath !== currentModelPath) {
