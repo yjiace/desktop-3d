@@ -855,6 +855,11 @@ function loadVRMModel(modelPath, onLoadCallback) {
       const center = box.getCenter(new THREE.Vector3());
       vrm.scene.position.sub(center);
       
+      // 动态设置缩放范围，提升大模型下的缩放体验
+      const maxSize = Math.max(size.x, size.y, size.z);
+      controls.minDistance = maxSize * 0.08;
+      controls.maxDistance = maxSize * 5;
+      
       animationClips = gltf.animations;
       if (animationClips.length > 0) {
         mixer = new THREE.AnimationMixer(vrm.scene);

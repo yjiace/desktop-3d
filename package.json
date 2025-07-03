@@ -3,7 +3,25 @@
   "version": "1.0.0",
   "description": "桌面3D看板娘",
   "main": "src/main.cjs",
+  "build": {
+    "appId": "cn.smallyoung.desktop3d",
+    "productName": "Desktop3D",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "icon": "assets/favicon.ico",
+      "target": "nsis"
+    },
+    "forceCodeSigning": false
+  },
   "scripts": {
+    "build": "electron-builder",
     "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -14,7 +32,8 @@
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "electron": "^31.2.1"
+    "electron": "^31.7.7",
+    "electron-builder": "^26.0.12"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.1",
